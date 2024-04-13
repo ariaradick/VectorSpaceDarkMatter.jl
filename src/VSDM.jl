@@ -1,5 +1,5 @@
 module VSDM
 
-# Write your package code here.
+include("Haar.jl")
 
 end
