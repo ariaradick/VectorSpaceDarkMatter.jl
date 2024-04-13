@@ -1,5 +1,5 @@
 module VSDM
 
-include("Haar.jl")
+include("haar.jl")
 
 end
