@@ -1,8 +1,6 @@
 import SpecialFunctions: gamma
 import ClassicalOrthogonalPolynomials: laguerrel as laguerre
 
-include("haar.jl")
-
 # Spherical Laguerre functions:
 
 _lag_half_ln(n, ell, z) = laguerre(n, 1/2 + ell, z)
