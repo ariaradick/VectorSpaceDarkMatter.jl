@@ -4,7 +4,6 @@ authors = ["Aria Radick"]
 version = "0.1.0-DEV"
 
 [deps]
-ClassicalOrthogonalPolynomials = "b30e2e7b-c4ee-47da-9d5f-2c5c27239acd"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
