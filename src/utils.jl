@@ -76,3 +76,7 @@ function ylm_real(ell, m, theta, phi)
         return ((2*ell+1)/(4*π))^0.5 * plm_norm(ell, m, cos(theta))
     end
 end
+
+function dV_sph(rvec)
+    return rvec[1]^2 * sin(rvec[2])
+end
