@@ -1,8 +1,9 @@
 import SpecialFunctions: gamma
 import HCubature: hcubature
-import FastTransforms: sphevaluate
+using MCIntegration
 
-ylm_fast(ell, m, θ, φ) = sphevaluate(θ, φ, ell, m)
+# import FastTransforms: sphevaluate
+# ylm_fast(ell, m, θ, φ) = sphevaluate(θ, φ, ell, m)
 
 # Spherical Laguerre functions:
 
@@ -57,8 +58,8 @@ function phi_nlm(nlm, xvec)
     return haar_fn_x(n, x)*ylm_real(ell, m, θ, φ)
 end
 
-function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int}; integ_params=(rtol=1e-6,
-        atol=1e-6))
+function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int}; 
+        integ_method::Symbol=:cubature, integ_params::NamedTuple=(;))
     theta_Zn = Int(f.z_even)+1
     theta_region = [0, π/theta_Zn]
 
@@ -75,9 +76,9 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int}; integ_params=(rtol=1e-6,
             uvec = [x_rth[1]*f.umax, x_rth[2], phi]
             dV_sph(xvec)*f.f(uvec)*phi_nlm(nlm, xvec)
         end
-        fnlm = hcubature(integrand_m0, [xmin, theta_region[1]],
-                    [xmax, theta_region[2]]; rtol=integ_params.rtol,
-                    atol=integ_params.atol)
+        fnlm = NIntegrate(integrand_m0, [xmin, theta_region[1]],
+                    [xmax, theta_region[2]], integ_method;
+                    integ_params=integ_params)
         fnlm = @. 2*π*theta_Zn*fnlm
         return fnlm
     end
@@ -93,9 +94,9 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int}; integ_params=(rtol=1e-6,
         dV_sph(xvec) * f.f(uvec) * phi_nlm(nlm, xvec)
     end
 
-    fnlm = hcubature(integrand_fnlm, [xmin, theta_region[1], phi_region[1]],
-            [xmax, theta_region[2], phi_region[2]]; rtol=integ_params.rtol,
-            atol=integ_params.atol)
+    fnlm = NIntegrate(integrand_fnlm, [xmin, theta_region[1], phi_region[1]],
+            [xmax, theta_region[2], phi_region[2]], integ_method; 
+            integ_params=integ_params)
     fnlm = @. theta_Zn*f.phi_cyclic*fnlm
 
     return fnlm
