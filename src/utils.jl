@@ -80,3 +80,32 @@ end
 function dV_sph(rvec)
     return rvec[1]^2 * sin(rvec[2])
 end
+
+function NIntegrate(integrand::Function, a, b, method::Symbol; 
+    integ_params::NamedTuple=(;))
+
+    if method == :cubature
+        if !(:rtol in keys(integ_params))
+            integ_params = (rtol=1e-4, integ_params...)
+        end
+        return hcubature(integrand, a, b; integ_params...)
+
+    elseif method in (:vegas, :vegasmc)
+        function intg(mcvec, c)
+            xvec = [(mcvec...)...]
+            integrand(xvec)
+        end
+        res = integrate( intg;
+            solver=method,
+            var=Continuous([(a[i],b[i]) for i in eachindex(a)]),
+            integ_params... )
+        return (res.mean[1], res.stdev[1])
+
+    else
+        error("Integration method $method not supported.")
+    end
+end
+
+function NIntegrate(integrand::Function, a, b; integ_params::NamedTuple=(;))
+    NIntegrate(integrand, a, b, :cubature; integ_params=integ_params)
+end
