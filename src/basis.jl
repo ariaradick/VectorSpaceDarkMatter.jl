@@ -44,8 +44,8 @@ struct f_uSph
     phi_cyclic::Int
     phi_symmetric::Bool
 
-    function f_uSph(f::Function; umax=1.0, z_even=false, phi_even=false, phi_cyclic=1,
-        phi_symmetric=false)
+    function f_uSph(f::Function; umax=1.0, z_even=false, phi_even=false, 
+        phi_cyclic=1, phi_symmetric=false)
         new(f, umax, z_even, phi_even, phi_cyclic, phi_symmetric)
     end
 end

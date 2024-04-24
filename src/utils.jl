@@ -81,8 +81,8 @@ function dV_sph(rvec)
     return rvec[1]^2 * sin(rvec[2])
 end
 
-function NIntegrate(integrand::Function, a, b, method::Symbol; 
-    integ_params::NamedTuple=(;))
+function NIntegrate(integrand::Function, a::Vector{Float64}, 
+    b::Vector{Float64}, method::Symbol; integ_params::NamedTuple=(;))
 
     if method == :cubature
         if !(:rtol in keys(integ_params))
@@ -92,13 +92,13 @@ function NIntegrate(integrand::Function, a, b, method::Symbol;
 
     elseif method in (:vegas, :vegasmc)
         function intg(mcvec, c)
-            xvec = [(mcvec...)...]
+            xvec = [y[1] for y in mcvec]
             integrand(xvec)
         end
         res = integrate( intg;
-            solver=method,
-            var=Continuous([(a[i],b[i]) for i in eachindex(a)]),
-            integ_params... )
+                solver=method,
+                var=Continuous([(a[i],b[i]) for i in eachindex(a)]),
+                integ_params... )
         return (res.mean[1], res.stdev[1])
 
     else
