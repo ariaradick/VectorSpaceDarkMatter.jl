@@ -121,7 +121,7 @@ function haar_fn_x(n, x; dim=3)
         elseif x==x3
             return 0.5*(hval[2])
         else
-            return 0
+            return zero(x)
         end
     end
 end
