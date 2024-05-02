@@ -1,6 +1,4 @@
 import SpecialFunctions: gamma
-import HCubature: hcubature
-using MCIntegration
 
 # import FastTransforms: sphevaluate
 # ylm_fast(ell, m, θ, φ) = sphevaluate(θ, φ, ell, m)
@@ -76,10 +74,13 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
             uvec = [x_rth[1]*f.umax, x_rth[2], phi]
             dV_sph(xvec)*f.f(uvec)*phi_nlm(nlm, xvec)
         end
-        fnlm = NIntegrate(integrand_m0, [xmin, theta_region[1]],
+        fnlmA = NIntegrate(integrand_m0, [xmin, theta_region[1]],
+                    [xmid, theta_region[2]], integ_method;
+                    integ_params=integ_params)
+        fnlmB = NIntegrate(integrand_m0, [xmid, theta_region[1]],
                     [xmax, theta_region[2]], integ_method;
                     integ_params=integ_params)
-        fnlm = @. 2*π*theta_Zn*fnlm
+        fnlm = 2*π*theta_Zn*(fnlmA + fnlmB)
         return fnlm
     end
 
@@ -94,10 +95,13 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
         dV_sph(xvec) * f.f(uvec) * phi_nlm(nlm, xvec)
     end
 
-    fnlm = NIntegrate(integrand_fnlm, [xmin, theta_region[1], phi_region[1]],
+    fnlmA = NIntegrate(integrand_fnlm, [xmin, theta_region[1], phi_region[1]],
+            [xmid, theta_region[2], phi_region[2]], integ_method; 
+            integ_params=integ_params)
+    fnlmB = NIntegrate(integrand_fnlm, [xmid, theta_region[1], phi_region[1]],
             [xmax, theta_region[2], phi_region[2]], integ_method; 
             integ_params=integ_params)
-    fnlm = @. theta_Zn*f.phi_cyclic*fnlm
+    fnlm = theta_Zn*f.phi_cyclic*(fnlmA + fnlmB)
 
     return fnlm
 end

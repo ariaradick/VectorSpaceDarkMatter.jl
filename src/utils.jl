@@ -1,3 +1,7 @@
+import HCubature: hcubature
+using MCIntegration
+using Measurements
+
 function plm_norm(ell, m, x)
     """The 'normalized' associated Legendre polynomials.
 
@@ -88,7 +92,7 @@ function NIntegrate(integrand::Function, a::Vector{Float64},
         if !(:rtol in keys(integ_params))
             integ_params = (rtol=1e-4, integ_params...)
         end
-        return hcubature(integrand, a, b; integ_params...)
+        return measurement(hcubature(integrand, a, b; integ_params...)...)
 
     elseif method in (:vegas, :vegasmc)
         function intg(mcvec, c)
@@ -99,7 +103,7 @@ function NIntegrate(integrand::Function, a::Vector{Float64},
                 solver=method,
                 var=Continuous([(a[i],b[i]) for i in eachindex(a)]),
                 integ_params... )
-        return (res.mean[1], res.stdev[1])
+        return measurement(res.mean[1], res.stdev[1])
 
     else
         error("Integration method $method not supported.")
