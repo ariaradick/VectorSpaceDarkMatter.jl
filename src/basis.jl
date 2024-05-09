@@ -91,11 +91,11 @@ function phi_nlm(nlm, xvec, radial_basis::RadialBasis)
     return radRn(n, x, radial_basis)*ylm_real(ell, m, θ, φ)
 end
 
-function _base_of_support_n(n::Int, radial_basis::Wavelet)
+function _base_of_support_n(n, radial_basis::Wavelet)
     _haar_x13(n)
 end
 
-function _base_of_support_n(n::Int, radial_basis::Tophat)
+function _base_of_support_n(n, radial_basis::Tophat)
     [radial_basis.xi[n+1], radial_basis.xi[n+2]]
 end
 
@@ -111,7 +111,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
 
     if f.phi_symmetric == true
         if m ≠ 0 || (f.z_even && (l % 2 ≠ 0))
-            return 0.0
+            return (0.0 ± 0.0)
         end
         function integrand_m0(x_rth)
             phi = 0.0
@@ -131,7 +131,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
     end
 
     if (f.z_even && ((l+m) % 2) ≠ 0) || (f.phi_even && m<0)
-        return 0.0
+        return (0.0 ± 0.0)
     end
 
     phi_region = [0, 2*π/f.phi_cyclic]
