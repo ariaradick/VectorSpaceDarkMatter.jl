@@ -2,21 +2,23 @@ import HCubature: hcubature
 using MCIntegration
 using Measurements
 
+"""
+    plm_norm(ell, m, x)
+The 'normalized' associated Legendre polynomials.
+
+Defined as: (-1)^m * sqrt[(l-m)! / (l+m)!] * P_lm(x)
+For m=0, this is identical to the usual P_l(x).
+
+Method:
+* Using Bonnet recursion for the m=0 special case (upwards from l=0,1).
+* For m>0, using 'horizontal' recursion from (m,m) to (l,m),
+    using the 'associated' Bonnet recursion relations.
+
+Numerically stable for all x in [-1,1], even arbitrarily close to x^2=1.
+(e.g. x = 1 - 1e-15).
+Permits the accurate calculation of P_lm(x) up to at least ell=m=1e6.
+"""
 function plm_norm(ell, m, x)
-    """The 'normalized' associated Legendre polynomials.
-
-    Defined as: (-1)^m * sqrt[(l-m)! / (l+m)!] * P_lm(x)
-    For m=0, this is identical to the usual P_l(x).
-
-    Method:
-    * Using Bonnet recursion for the m=0 special case (upwards from l=0,1).
-    * For m>0, using 'horizontal' recursion from (m,m) to (l,m),
-        using the 'associated' Bonnet recursion relations.
-
-    Numerically stable for all x in [-1,1], even arbitrarily close to x^2=1.
-    (e.g. x = 1 - 1e-15).
-    Permits the accurate calculation of P_lm(x) up to at least ell=m=1e6.
-    """
     # poch_plus = 1. # (l+m)!/l!
     # poch_minus = 1. # l!/(l-m)!
     Pk = zero(x)
@@ -68,8 +70,8 @@ function plm_norm(ell, m, x)
     return Pk
 end
 
+"Real-valued spherical harmonics."
 function ylm_real(ell, m, theta, phi)
-    "Real-valued spherical harmonics."
     if m > 0
         mm = m
         return ((2*ell+1)/(2*π))^0.5 * plm_norm(ell, mm, cos(theta)) * cos(mm*phi)
@@ -81,10 +83,12 @@ function ylm_real(ell, m, theta, phi)
     end
 end
 
+"Integration measure in 3D spherical coordinates."
 function dV_sph(rvec)
     return rvec[1]^2 * sin(rvec[2])
 end
 
+"Thin wrapper for HCubature and MCIntegration that uses HCubature's syntax."
 function NIntegrate(integrand::Function, a::Vector{Float64}, 
     b::Vector{Float64}, method::Symbol; integ_params::NamedTuple=(;))
 
@@ -112,4 +116,13 @@ end
 
 function NIntegrate(integrand::Function, a, b; integ_params::NamedTuple=(;))
     NIntegrate(integrand, a, b, :cubature; integ_params=integ_params)
+end
+
+"Converts a vector in spherical coordinates to cartestian coordinates."
+function sph_to_cart(x_sph)
+    x, θ, φ = x_sph
+    rx = x*sin(θ)*cos(φ)
+    ry = x*sin(θ)*sin(φ)
+    rz = x*cos(θ)
+    return [rx, ry, rz]
 end
