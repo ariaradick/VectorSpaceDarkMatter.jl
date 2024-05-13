@@ -94,9 +94,11 @@ function NIntegrate(integrand::Function, a::Vector{Float64},
 
     if method == :cubature
         if !(:rtol in keys(integ_params))
-            integ_params = (rtol=1e-4, integ_params...)
+            intg_params = (rtol=1e-6, integ_params...)
+        else
+            intg_params = integ_params
         end
-        return measurement(hcubature(integrand, a, b; integ_params...)...)
+        return measurement(hcubature(integrand, a, b; intg_params...)...)
 
     elseif method in (:vegas, :vegasmc)
         function intg(mcvec, c)
