@@ -53,33 +53,43 @@ phi_symmetric: (boolean) if f_uSph(u,theta) independent of phi
 """
 struct f_uSph
     f::Function
-    umax::Float64
     z_even::Bool
     phi_even::Bool
     phi_cyclic::Int
     phi_symmetric::Bool
 
-    function f_uSph(f::Function; umax=1.0, z_even=false, phi_even=false, 
+    function f_uSph(f::Function; z_even=false, phi_even=false, 
         phi_cyclic=1, phi_symmetric=false)
-        new(f, umax, z_even, phi_even, phi_cyclic, phi_symmetric)
+        new(f, z_even, phi_even, phi_cyclic, phi_symmetric)
     end
 end
 
 abstract type RadialBasis end
 
-struct Wavelet <: RadialBasis end
+struct Wavelet <: RadialBasis
+    umax::Float64
+
+    function Wavelet(; umax=1.0)
+        new(umax)
+    end
+end
 
 struct Tophat <: RadialBasis
     xi::Vector{Float64}
+    umax::Float64
+
+    function Tophat(xi::Vector{Float64}; umax=1.0)
+        new(xi, umax)
+    end
 end
 
 """ Radial basis function for spherical Haar wavelets """
-function radRn(n, x, basis::Wavelet)
+function radRn(n, ell, x, basis::Wavelet)
     haar_fn_x(n, x)
 end
 
 """ Radial basis function for spherical tophats """
-function radRn(n, x, basis::Tophat)
+function radRn(n, ell, x, basis::Tophat)
     x_n, x_np1 = basis.xi[n+1], basis.xi[n+2]
     tophat_value(x_n, x_np1)
 end
@@ -88,7 +98,7 @@ end
 function phi_nlm(nlm, xvec, radial_basis::RadialBasis)
     n, ell, m = nlm
     x, θ, φ = xvec
-    return radRn(n, x, radial_basis)*ylm_real(ell, m, θ, φ)
+    return radRn(n, ell, x, radial_basis)*ylm_real(ell, m, θ, φ)
 end
 
 function _base_of_support_n(n, radial_basis::Wavelet)
@@ -99,8 +109,8 @@ function _base_of_support_n(n, radial_basis::Tophat)
     [radial_basis.xi[n+1], radial_basis.xi[n+2]]
 end
 
-function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
-                 radial_basis::RadialBasis=Wavelet(),
+function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int},
+                 radial_basis::RadialBasis;
                  integ_method::Symbol=:cubature,
                  integ_params::NamedTuple=(;))
     theta_Zn = Int(f.z_even)+1
@@ -108,6 +118,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
 
     n, l, m = nlm
     x_support = _base_of_support_n(n, radial_basis)
+    u_max = radial_basis.umax
 
     if f.phi_symmetric == true
         if m ≠ 0 || (f.z_even && (l % 2 ≠ 0))
@@ -116,17 +127,17 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
         function integrand_m0(x_rth)
             phi = 0.0
             xvec = [x_rth[1], x_rth[2], phi]
-            uvec = [x_rth[1]*f.umax, x_rth[2], phi]
+            uvec = [x_rth[1]*u_max, x_rth[2], phi]
             dV_sph(xvec)*f.f(uvec)*phi_nlm(nlm, xvec, radial_basis)
         end
         fnlm = (0.0 ± 0.0)
         for i in 1:(length(x_support)-1)
-            fnlm += NIntegrate(integrand_m0, 
+            fnlm += NIntegrate(integrand_m0,
                     [x_support[i], theta_region[1]],
                     [x_support[i+1], theta_region[2]], 
                     integ_method; integ_params=integ_params)
         end
-        fnlm *= 2*π*theta_Zn
+        fnlm *= 2*π*theta_Zn*u_max^3
         return fnlm
     end
 
@@ -137,7 +148,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
     phi_region = [0, 2*π/f.phi_cyclic]
     
     function integrand_fnlm(xvec)
-        uvec = [xvec[1]*f.umax, xvec[2], xvec[3]]
+        uvec = [xvec[1]*u_max, xvec[2], xvec[3]]
         dV_sph(xvec) * f.f(uvec) * phi_nlm(nlm, xvec, radial_basis)
     end
 
@@ -148,16 +159,31 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int};
             [x_support[i+1], theta_region[2], phi_region[2]], 
             integ_method; integ_params=integ_params)
     end
-    fnlm *= theta_Zn*f.phi_cyclic
+    fnlm *= theta_Zn*f.phi_cyclic*u_max^3
 
     return fnlm
 end
 
-function getFnlm(f::Function, nlm::Tuple{Int, Int, Int};
-                 radial_basis::RadialBasis=Wavelet(),
+function getFnlm(f::Function, nlm::Tuple{Int, Int, Int},
+                 radial_basis::RadialBasis;
                  integ_method::Symbol=:cubature,
                  integ_params::NamedTuple=(;))
     fSph = f_uSph(f)
-    return getFnlm(fSph, nlm; radial_basis=radial_basis,
+    return getFnlm(fSph, nlm, radial_basis;
+        integ_method=integ_method, integ_params=integ_params)
+end
+
+function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int}; umax=1.0,
+    integ_method::Symbol=:cubature, integ_params::NamedTuple=(;))
+    radial_basis = Wavelet(umax=umax)
+    return getFnlm(f, nlm, radial_basis;
+        integ_method=integ_method, integ_params=integ_params)
+end
+
+function getFnlm(f::Function, nlm::Tuple{Int, Int, Int}; umax=1.0,
+    integ_method::Symbol=:cubature, integ_params::NamedTuple=(;))
+    fSph = f_uSph(f)
+    radial_basis = Wavelet(umax=umax)
+    return getFnlm(fSph, nlm, radial_basis;
         integ_method=integ_method, integ_params=integ_params)
 end
