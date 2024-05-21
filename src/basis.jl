@@ -68,20 +68,16 @@ abstract type RadialBasis end
 
 struct Wavelet <: RadialBasis
     umax::Float64
-
-    function Wavelet(; umax=1.0)
-        new(umax)
-    end
 end
+
+Wavelet() = Wavelet(1.0)
 
 struct Tophat <: RadialBasis
     xi::Vector{Float64}
     umax::Float64
-
-    function Tophat(xi::Vector{Float64}; umax=1.0)
-        new(xi, umax)
-    end
 end
+
+Tophat(xi) = Tophat(xi, 1.0)
 
 """ Radial basis function for spherical Haar wavelets """
 function radRn(n, ell, x, basis::Wavelet)
@@ -100,6 +96,8 @@ function phi_nlm(nlm, xvec, radial_basis::RadialBasis)
     x, θ, φ = xvec
     return radRn(n, ell, x, radial_basis)*ylm_real(ell, m, θ, φ)
 end
+
+phi_nlm(n, lm, xvec, radial_basis::RadialBasis) = phi_nlm((n, lm...), xvec, radial_basis)
 
 function _base_of_support_n(n, radial_basis::Wavelet)
     _haar_x13(n)
@@ -137,7 +135,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int},
                     [x_support[i+1], theta_region[2]], 
                     integ_method; integ_params=integ_params)
         end
-        fnlm *= 2*π*theta_Zn*u_max^3
+        fnlm *= 2*π*theta_Zn
         return fnlm
     end
 
@@ -159,7 +157,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int},
             [x_support[i+1], theta_region[2], phi_region[2]], 
             integ_method; integ_params=integ_params)
     end
-    fnlm *= theta_Zn*f.phi_cyclic*u_max^3
+    fnlm *= theta_Zn*f.phi_cyclic
 
     return fnlm
 end
