@@ -5,6 +5,7 @@ version = "0.1.0-DEV"
 
 [deps]
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
 Measurements = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
