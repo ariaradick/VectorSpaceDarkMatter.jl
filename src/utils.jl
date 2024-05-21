@@ -83,6 +83,21 @@ function ylm_real(ell, m, theta, phi)
     end
 end
 
+function ylm_real(lm::Tuple{Int,Int}, theta, phi)
+    ell, m = lm
+    return ylm_real(ell, m, theta, phi)
+end
+
+function LM_sph(i)
+    l = floor(Int, sqrt(i-1))
+    m = i - (l^2+l+1)
+    return (l,m)
+end
+
+function idx_sph(ell, m)
+    ell^2+ell+1+m
+end
+
 "Integration measure in 3D spherical coordinates."
 function dV_sph(rvec)
     return rvec[1]^2 * sin(rvec[2])
