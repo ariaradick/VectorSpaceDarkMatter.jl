@@ -88,12 +88,14 @@ function ylm_real(lm::Tuple{Int,Int}, theta, phi)
     return ylm_real(ell, m, theta, phi)
 end
 
+"Gives the `(l,m)` that correspond to a given `i` in a spherical harmonic vector."
 function LM_sph(i)
     l = floor(Int, sqrt(i-1))
     m = i - (l^2+l+1)
     return (l,m)
 end
 
+"Gives the `i` that corresponds to `ell` and `m` for a spherical harmonic vector."
 function idx_sph(ell, m)
     ell^2+ell+1+m
 end

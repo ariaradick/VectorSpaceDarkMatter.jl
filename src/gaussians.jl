@@ -1,6 +1,17 @@
 import SpecialFunctions: besselix
 import LinearAlgebra: dot
 
+"""
+    GaussianF(c::Float64, uSph::Vector{Float64}, sigma::Float64)
+
+Contains parameters for a gaussian function where `uSph` is the spherical vector
+indicating the center of the gaussian, uSph = (u, theta, phi). `sigma` is
+the dispersion (equal to sqrt(2)*sigma in a "normal" gaussian). `c` is the
+overall amplitude. `u` and `sigma` should have the same units.
+
+An instance `g` of `GaussianF` is callable by `g(uvec)`, which will evaluate
+the gaussian at `uvec = [u, theta, phi]`.
+"""
 struct GaussianF
     c::Float64
     uSph::Vector{Float64}
@@ -15,6 +26,7 @@ function (g::GaussianF)(uvec)
     return g.c/(sqrt(π)*g.sigma)^3 * exp(-du2/g.sigma^2)
 end
 
+"Integrand for G_nl."
 function normG_nli_integrand(g::GaussianF, n, ell, u, basis::RadialBasis)
     u_i = g.uSph[1]
     sigma_i = g.sigma
@@ -37,11 +49,13 @@ function normG_nli_integrand(g::GaussianF, n, ell, u, basis::RadialBasis)
     return measure * expfact * ivefact * radRn(n, ell, u, basis)
 end
 
+"Scales the range of a `GaussianF`"
 function scale(g::GaussianF, scale_factor)
     return GaussianF(g.c, [g.uSph[1]*scale_factor, g.uSph[2], g.uSph[3]], 
             g.sigma*scale_factor)
 end
 
+"Evaluates the integral part of <g | nlm>, which does not depend on m."
 function getGnl(g::GaussianF, n, ell, radial_basis::RadialBasis;
     integ_params::NamedTuple=(;))
 
@@ -71,11 +85,18 @@ function getFnlm(g::GaussianF, nlm, radial_basis::RadialBasis;
     return cY_i * gnl / radial_basis.umax^3
 end
 
+"""
+    getFnlm(g::Vector{GaussianF}, nlm, radial_basis::RadialBasis;
+        integ_params::NamedTuple=(;))
+
+If called with a Vector{GaussianF}, will add the resulting fnlm values.
+"""
 function getFnlm(g::Vector{GaussianF}, nlm, radial_basis::RadialBasis;
     integ_params::NamedTuple=(;))
     return sum(getFnlm.(g, (nlm,), (radial_basis,); integ_params=integ_params))
 end
 
+"Integral of (d^3 u) f^2(u)"
 norm_energy(g::GaussianF) = g.c/(g.sigma * sqrt(2*π))^3
 
 function norm_energy(g::Vector{GaussianF})

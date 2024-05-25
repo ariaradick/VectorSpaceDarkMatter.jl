@@ -66,12 +66,24 @@ end
 
 abstract type RadialBasis end
 
+"""
+    Wavelet(umax)
+
+Spherical Haar wavelets. Contains the maximum value of u = |\\vec{u}| that the 
+basis of will be evaluated over.
+"""
 struct Wavelet <: RadialBasis
     umax::Float64
 end
 
 Wavelet() = Wavelet(1.0)
 
+"""
+    Tophat(xi, [umax])
+
+Tophat basis functions between each point in xi. The range will be scaled by
+umax, the maximum value of u = |\\vec{u}|.
+"""
 struct Tophat <: RadialBasis
     xi::Vector{Float64}
     umax::Float64
@@ -99,6 +111,7 @@ end
 
 phi_nlm(n, lm, xvec, radial_basis::RadialBasis) = phi_nlm((n, lm...), xvec, radial_basis)
 
+"Returns the base of support (x1, x2) for a given n and radial basis"
 function _base_of_support_n(n, radial_basis::Wavelet)
     _haar_x13(n)
 end
@@ -107,6 +120,27 @@ function _base_of_support_n(n, radial_basis::Tophat)
     [radial_basis.xi[n+1], radial_basis.xi[n+2]]
 end
 
+"""
+    getFnlm(f, nlm::Tuple{Int, Int, Int},
+        radial_basis::RadialBasis;
+        integ_method::Symbol=:cubature,
+        integ_params::NamedTuple=(;))
+
+Calculates the (n,l,m) coefficient <f | nlm> for an expansion in the specified
+radial basis (up to radial_basis.umax) and real spherical harmonics.
+
+`f` : Can be a `Function`, `f_uSph`, or `GaussianF`. `f_uSph` is preferred if
+      your function has any symmetries, as specifying those will greatly speed 
+      up evaluation.
+
+`radial_basis` : Either a `Wavelet` or `Tophat`
+
+`integ_method` : can be `:cubature`, `:vegas`, or `:vegasmc`
+
+`integ_params` : keyword arguments to pass to the integrator. If `:cubature`, 
+    these are kwargs for `hcubature`. If `:vegas` or `:vegasmc`, these are
+    kwargs for `MCIntegration`'s `integrate` method.
+"""
 function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int},
                  radial_basis::RadialBasis;
                  integ_method::Symbol=:cubature,
@@ -171,9 +205,16 @@ function getFnlm(f::Function, nlm::Tuple{Int, Int, Int},
         integ_method=integ_method, integ_params=integ_params)
 end
 
+"""
+    getFnlm(f, nlm::Tuple{Int, Int, Int}; umax=1.0,
+        integ_method::Symbol=:cubature, integ_params::NamedTuple=(;))
+
+If called without a `radial_basis` argument, will automatically use `Wavelet`
+with umax as a keyword argument.
+"""
 function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int}; umax=1.0,
     integ_method::Symbol=:cubature, integ_params::NamedTuple=(;))
-    radial_basis = Wavelet(umax=umax)
+    radial_basis = Wavelet(umax)
     return getFnlm(f, nlm, radial_basis;
         integ_method=integ_method, integ_params=integ_params)
 end
@@ -181,7 +222,7 @@ end
 function getFnlm(f::Function, nlm::Tuple{Int, Int, Int}; umax=1.0,
     integ_method::Symbol=:cubature, integ_params::NamedTuple=(;))
     fSph = f_uSph(f)
-    radial_basis = Wavelet(umax=umax)
+    radial_basis = Wavelet(umax)
     return getFnlm(fSph, nlm, radial_basis;
         integ_method=integ_method, integ_params=integ_params)
 end

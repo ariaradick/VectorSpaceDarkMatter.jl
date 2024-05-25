@@ -1,8 +1,35 @@
+"""
+    ProjectedF{A, B}(fnlm::Matrix{A}, radial_basis::B)
+
+Stores the <f | nlm> coefficients and the radial basis that was used to
+calculate them. It is assumed that spherical harmonics were used for the
+angular parts. `A` is the element type of the matrix that stores `fnlm`
+coefficients (should be either `Float64` or `Measurement`). `B` is the type 
+of radial basis.
+"""
 struct ProjectedF{A, B<:RadialBasis}
     fnlm::Matrix{A}
     radial_basis::B
 end
 
+"""
+    ProjectedF(f, nl_max, radial_basis::RadialBasis; 
+                    use_measurements=false, rtol=1e-6)
+
+Evaluates <f | nlm> at each (n,l,m) up to nl_max = (n_max, l_max) and returns
+the result as a `ProjectedF`.
+
+`f` : Can be a `Function`, `f_uSph`, `GaussianF`, or `Vector{GaussianF}`. 
+      `f_uSph` is preferred if your function has any symmetries, as specifying
+      those will greatly speed up evaluation.
+
+`radial_basis` : Either a `Wavelet` or `Tophat`
+
+`use_measurements` : If `true`, will give the results a a measurement with
+    uncertainty given by the integration error.
+
+`rtol` : relative tolerance for the `:cubature` integration method.
+"""
 function ProjectedF(f, nl_max, radial_basis::RadialBasis; 
                     use_measurements=false, rtol=1e-6)
     n_max, l_max = nl_max
