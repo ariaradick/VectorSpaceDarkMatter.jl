@@ -22,18 +22,23 @@ Evaluates <f | nlm> at each (n,l,m) up to nl_max = (n_max, l_max) and returns
 the result as a `ProjectedF`.
 
 `f` : Can be a `Function`, `f_uSph`, `GaussianF`, or `Vector{GaussianF}`. 
-      `f_uSph` is preferred if your function has any symmetries, as specifying
-      those will greatly speed up evaluation.
+      `f_uSph` is preferred if your function has any symmetries, and is not 
+      gaussian, as specifying those will greatly speed up evaluation.
 
 `radial_basis` : Either a `Wavelet` or `Tophat`
 
 `use_measurements` : If `true`, will give the results as a measurement with
     uncertainty given by the integration error.
 
-`rtol` : relative tolerance for the `:cubature` integration method.
+`integ_method` : Either `:cubature`, `:vegas`, or `:vegasmc`
+
+`integ_params` : keyword arguments to pass to the integrator. If `:cubature`, 
+    these are kwargs for `hcubature`. If `:vegas` or `:vegasmc`, these are
+    kwargs for `MCIntegration`'s `integrate` method.
 """
 function ProjectedF(f, nl_max, radial_basis::RadialBasis; 
-                    use_measurements=false, rtol=1e-6)
+                    use_measurements=false, integ_method=:cubature,
+                    integ_params=(;))
     n_max, l_max = nl_max
     n_vals = 0:n_max
     lm_vals = LM_vals(l_max)
@@ -45,7 +50,8 @@ function ProjectedF(f, nl_max, radial_basis::RadialBasis;
         ell, m = lm_vals[i]
         for n in n_vals
             res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
-                            integ_params=(rtol=rtol,))
+                            integ_method=integ_method,
+                            integ_params=integ_params)
         end
     end    
     if use_measurements
@@ -56,7 +62,8 @@ function ProjectedF(f, nl_max, radial_basis::RadialBasis;
 end
 
 function ProjectedF(f::f_uSph, nl_max, radial_basis::RadialBasis; 
-    use_measurements=false, rtol=1e-6)
+    use_measurements=false, integ_method=:cubature, integ_params=(;))
+
     n_max, l_max = nl_max
     n_vals = 0:n_max
     lm_vals = LM_vals(f, l_max)
@@ -68,7 +75,8 @@ function ProjectedF(f::f_uSph, nl_max, radial_basis::RadialBasis;
         ell, m = lm_vals[i]
         for n in n_vals
             res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
-                integ_params=(rtol=rtol,))
+                            integ_method=integ_method,
+                            integ_params=integ_params)
         end
     end    
     if use_measurements
@@ -79,7 +87,7 @@ function ProjectedF(f::f_uSph, nl_max, radial_basis::RadialBasis;
 end
 
 function ProjectedF(g::GaussianF, nl_max, radial_basis::RadialBasis;
-                    use_measurements=false, rtol=1e-6)
+                    use_measurements=false, integ_params=(;))
 
     u_i, θ_i, φ_i = g.uSph
     n_max, l_max = nl_max
@@ -92,7 +100,7 @@ function ProjectedF(g::GaussianF, nl_max, radial_basis::RadialBasis;
     for ell in 0:l_max
         for n in 0:n_max
             gnl[n+1, ell+1] = getGnl(g, n, ell, radial_basis, 
-                              integ_params=(rtol=rtol,))
+                              integ_params=integ_params)
         end
     end
 
@@ -112,13 +120,13 @@ function ProjectedF(g::GaussianF, nl_max, radial_basis::RadialBasis;
 end
 
 function ProjectedF(g::Vector{GaussianF}, nl_max, radial_basis::RadialBasis;
-                    use_measurements=false, rtol=1e-6)
+                    use_measurements=false, integ_params=(;))
     pf = Vector{ProjectedF}()
     lm_vals = LM_vals(nl_max[2])
 
     for gg in g
         push!(pf, ProjectedF(gg, nl_max, radial_basis; 
-              use_measurements=use_measurements, rtol=rtol))
+              use_measurements=use_measurements, integ_params=integ_params))
     end
 
     if use_measurements
