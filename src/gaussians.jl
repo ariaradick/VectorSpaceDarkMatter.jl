@@ -16,6 +16,16 @@ struct GaussianF
     c::Float64
     uSph::Vector{Float64}
     sigma::Float64
+
+    function GaussianF(c, uSph, sigma)
+        if uSph[1] < 0
+            throw(DomainError(uSph[1], "u must be not be negative"))
+        end
+        if (uSph[2] > π) || (uSph[2] < 0)
+            throw(DomainError(uSph[2], "theta must be between 0 and pi"))
+        end
+        return new(c, uSph, sigma)
+    end
 end
 
 function (g::GaussianF)(uvec)
@@ -96,9 +106,10 @@ function getFnlm(g::Vector{GaussianF}, nlm, radial_basis::RadialBasis;
     return sum(getFnlm.(g, (nlm,), (radial_basis,); integ_params=integ_params))
 end
 
-"Integral of (d^3 u) f^2(u)"
+"Integral of (d^3 u) g^2(u)"
 norm_energy(g::GaussianF) = g.c/(g.sigma * sqrt(2*π))^3
 
+"Integral of (d^3 u) (sum_i g_i(u))^2"
 function norm_energy(g::Vector{GaussianF})
     res = 0.0
 
