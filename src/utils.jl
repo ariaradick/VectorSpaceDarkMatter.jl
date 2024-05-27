@@ -23,7 +23,7 @@ function plm_norm(ell, m, x)
     # poch_minus = 1. # l!/(l-m)!
     Pk = zero(x)
     if ell==0
-        return 1
+        return one(x)
     end
     x2 = x^2
     if x2==1
@@ -36,7 +36,7 @@ function plm_norm(ell, m, x)
         if ell==1
             return x
         end
-        Pk_minus2 = 1
+        Pk_minus2 = 1.0
         Pk_minus1 = x
         for k in 2:ell
             Pk = ((2-1/k)*x*Pk_minus1 - (1-1/k)*Pk_minus2)
@@ -81,11 +81,23 @@ function ylm_real(ell, m, theta, phi)
     elseif m==0
         return ((2*ell+1)/(4*π))^0.5 * plm_norm(ell, m, cos(theta))
     end
+    return 0.0
 end
 
 function ylm_real(lm::Tuple{Int,Int}, theta, phi)
     ell, m = lm
     return ylm_real(ell, m, theta, phi)
+end
+
+function LM_vals(lmax; z_even=false, phi_even=false, phi_symmetric=false)
+    z = Int(z_even)+1
+    if phi_symmetric
+        return [(ell,0) for ell in 0:z:lmax]
+    elseif phi_even
+        return [(ell,m) for ell in 0:lmax for m in -ell:z:ell if (m%2 == 0)]
+    else
+        return [(ell,m) for ell in 0:lmax for m in -ell:z:ell]
+    end
 end
 
 "Gives the `(l,m)` that correspond to a given `i` in a spherical harmonic vector."

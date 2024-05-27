@@ -64,6 +64,11 @@ struct f_uSph
     end
 end
 
+function LM_vals(f::f_uSph, lmax)
+    LM_vals(lmax; z_even=f.z_even, phi_even=f.phi_even, 
+            phi_symmetric=f.phi_symmetric)
+end
+
 abstract type RadialBasis end
 
 """
