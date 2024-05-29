@@ -12,6 +12,9 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
 MCIntegration = "0.4"
+SpecialFunctions = "2"
+HCubature = "1"
+Measurements = "2"
 julia = "1"
 
 [extras]
