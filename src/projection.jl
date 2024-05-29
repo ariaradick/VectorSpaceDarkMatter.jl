@@ -1,3 +1,5 @@
+using DelimitedFiles
+
 """
     ProjectedF{A, B}(fnlm::Matrix{A}, radial_basis::B)
 
@@ -12,6 +14,15 @@ struct ProjectedF{A, B<:RadialBasis}
     fnlm::Matrix{A}
     lm::Vector{Tuple{Int64,Int64}}
     radial_basis::B
+    z_even::Bool
+    phi_even::Bool
+    phi_symmetric::Bool
+
+    function ProjectedF(fnlm::Matrix{A}, lm, radial_basis::RadialBasis; z_even=false,
+        phi_even=false, phi_symmetric=false) where A <: Union{Float64,Measurement}
+        B = typeof(radial_basis)
+        new{A,B}(fnlm, lm, radial_basis, z_even, phi_even, phi_symmetric)
+    end
 end
 
 """
@@ -207,4 +218,35 @@ function norm_energy(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
     res_err = sqrt(sum(err_arr.^2))
 
     return (res ± res_err) * pf.radial_basis.umax^3
+end
+
+function writeFnlm(outfile, pf::ProjectedF)
+    n_vals = 0:(length(pf.fnlm[:,1])-1)
+    nlm = [(n,lm...) for lm in pf.lm for n in n_vals]
+
+    rb_type = typeof(pf.radial_basis)
+    rb_max = pf.radial_basis.umax
+
+    nmax = Int(maximum(n_vals))
+    lmax = Int(maximum([lm[1] for lm in pf.lm]))
+
+    open(outfile, "w") do io
+        write(io, "# type = $rb_type, umax = $rb_max, n_max = $nmax, l_max = $lmax\n")
+        write(io, "# z_even = $(pf.z_even), phi_even = $(pf.phi_even), phi_symmetric = $(pf.phi_symmetric)\n")
+        if eltype(pf.fnlm) == Float64
+            res = hcat([[nlm[i]..., pf.fnlm[i]] for i in eachindex(nlm)]...)'
+            write(io, "# n, l, m, f\n")
+            writedlm(io, res, ',')
+        elseif eltype(pf.fnlm) <: Measurement
+            res = hcat([[nlm[i]..., pf.fnlm[i].val, pf.fnlm[i].err] for i in eachindex(nlm)]...)'
+            write(io, "# n, l, m, f.val, f.err\n")
+            writedlm(io, res, ',')
+        end
+    end
+
+    return
+end
+
+function _readFnlm(infile)
+    readdlm(infile, ','; comments=true)
 end
