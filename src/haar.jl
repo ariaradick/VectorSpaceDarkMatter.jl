@@ -101,27 +101,40 @@ function haar_fn_x(n, x; dim=3)
     hval = haar_sph_value(n, dim=dim)
 
     if n == 0
-        if 0 < x < 1
+        if 0 <= x <= 1
             return hval
-        elseif x==0 || x==1
-            return 0.5*hval
+        # elseif x==0 || x==1
+        #     return 0.5*hval
         else
-            return zero(x)
+            return 0.0
         end
     else
         x1,x2,x3 = haar_x123(n)
         if x1 < x < x2
             return hval[1]
+
         elseif x2 < x < x3
             return hval[2]
+
         elseif x==x1
-            return 0.5*(hval[1])
+            if x==0.0
+                return hval[1]
+            else
+                return 0.5*(hval[1])
+            end
+
         elseif x==x2
             return 0.5*sum(hval)
+
         elseif x==x3
-            return 0.5*(hval[2])
+            if x == 1.0
+                return hval[2]
+            else
+                return 0.5*(hval[2])
+            end
+            
         else
-            return zero(x)
+            return 0.0
         end
     end
 end
