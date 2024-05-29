@@ -4,6 +4,7 @@ authors = ["Aria Radick"]
 version = "0.1.0-DEV"
 
 [deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MCIntegration = "ea1e2de9-7db7-4b42-91ee-0cd1bf6df167"
