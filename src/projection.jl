@@ -14,15 +14,45 @@ struct ProjectedF{A, B<:RadialBasis}
     fnlm::Matrix{A}
     lm::Vector{Tuple{Int64,Int64}}
     radial_basis::B
-    z_even::Bool
-    phi_even::Bool
-    phi_symmetric::Bool
+end
 
-    function ProjectedF(fnlm::Matrix{A}, lm, radial_basis::RadialBasis; z_even=false,
-        phi_even=false, phi_symmetric=false) where A <: Union{Float64,Measurement}
-        B = typeof(radial_basis)
-        new{A,B}(fnlm, lm, radial_basis, z_even, phi_even, phi_symmetric)
+"""
+    FCoeffs{A, B}(fnlm::Dict{Tuple{Int64,Int64,Int64}, A},
+        radial_basis::B)
+
+Stores the <f | nlm> coefficients as a dictionary with (n,l,m) => f_nlm
+and the radial basis that was used to calculate them. It is assumed
+that spherical harmonics were used for the angular parts. `A` is 
+the element type of the dict that stores `fnlm` coefficients (should 
+be either `Float64` or `Measurement`). `B` is the type of radial basis.
+"""
+struct FCoeffs{A, B<:RadialBasis}
+    fnlm::Dict{Tuple{Int64,Int64,Int64}, A}
+    radial_basis::B
+end
+
+function ProjectedF(fcoeffs::FCoeffs)
+    n_max = maximum([k[1] for k in keys(fcoeffs.fnlm)])
+    lm_vals = unique([(k[2], k[3]) for k in keys(fcoeffs.fnlm)])
+    N_lm = length(lm_vals)
+
+    res = zeros(valtype(fcoeffs.fnlm), (n_max+1, N_lm))
+
+    for (k,v) in fcoeffs.fnlm
+        n,l,m = k
+        lm_idx = findall(x->x==(l,m), lm_vals)[1]
+        res[n+1, lm_idx] = v
     end
+
+    return ProjectedF(res, lm_vals, fcoeffs.radial_basis)
+end
+
+function FCoeffs(pf::ProjectedF)
+    n_vals = 0:(length(pf.fnlm[:,1])-1)
+    nlm = [(n,lm...) for lm in pf.lm for n in n_vals]
+
+    res = Dict( nlm[i] => pf.fnlm[i] for i in eachindex(nlm) )
+    return FCoeffs(res, pf.radial_basis)
 end
 
 """
@@ -50,26 +80,9 @@ the result as a `ProjectedF`.
 function ProjectedF(f, nl_max, radial_basis::RadialBasis; 
                     use_measurements=false, integ_method=:cubature,
                     integ_params=(;))
-    n_max, l_max = nl_max
-    n_vals = 0:n_max
-    lm_vals = LM_vals(l_max)
-    N_lm = length(lm_vals)
-
-    res = zeros(Measurement, (n_max+1, N_lm))
-
-    for i in 1:N_lm
-        ell, m = lm_vals[i]
-        for n in n_vals
-            res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
-                            integ_method=integ_method,
-                            integ_params=integ_params)
-        end
-    end    
-    if use_measurements
-        return ProjectedF(res, radial_basis)
-    else
-        return ProjectedF(Measurements.value.(res), radial_basis)
-    end
+    fuSph = f_uSph(f)
+    ProjectedF(fuSph, nl_max, radial_basis; use_measurements=use_measurements,
+    integ_method=integ_method, integ_params=integ_params)
 end
 
 function ProjectedF(f::f_uSph, nl_max, radial_basis::RadialBasis; 
@@ -159,13 +172,14 @@ function (pf::ProjectedF{Float64,T})(uvec) where T<:RadialBasis
     n_vals = 0:(length(pf.fnlm[:,1])-1)
     N_lm = length(pf.lm)
 
+    rad = radRn.(n_vals, 0, x, (pf.radial_basis,))
+
     basis_vals = zeros(Float64, size(pf.fnlm))
     for i in 1:N_lm
         ell, m = pf.lm[i]
         y = ylm_real(ell, m, θ, φ)
         for n in n_vals
-            rad = radRn(n, ell, x, pf.radial_basis)
-            basis_vals[n+1, i] = rad*y
+            basis_vals[n+1, i] = rad[n+1]*y
         end
     end
 
@@ -232,7 +246,6 @@ function writeFnlm(outfile, pf::ProjectedF)
 
     open(outfile, "w") do io
         write(io, "# type = $rb_type, umax = $rb_max, n_max = $nmax, l_max = $lmax\n")
-        write(io, "# z_even = $(pf.z_even), phi_even = $(pf.phi_even), phi_symmetric = $(pf.phi_symmetric)\n")
         if eltype(pf.fnlm) == Float64
             res = hcat([[nlm[i]..., pf.fnlm[i]] for i in eachindex(nlm)]...)'
             write(io, "# n, l, m, f\n")
