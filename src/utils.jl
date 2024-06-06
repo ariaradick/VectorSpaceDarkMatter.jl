@@ -26,9 +26,12 @@ function plm_norm(ell, m, x)
         return one(x)
     end
     x2 = x^2
+    if x2 > 1
+        x2 = 1.0
+    end
     if x2==1
         # Evaluate now, to avoid 1/sqrt(1-x^2) division errors.
-        return Int(m==0) * (x^m%2)
+        return Int(m==0) * (x^(ell%2))
     end
     sqrt_1_x2 = (1-x2)^0.5
     if m==0
@@ -156,4 +159,41 @@ function sph_to_cart(x_sph)
     ry = x*sin(θ)*sin(φ)
     rz = x*cos(θ)
     return [rx, ry, rz]
+end
+
+function cart_to_sph(uXYZ)
+    ux, uy, uz = uXYZ
+    u = sqrt(ux^2 + uy^2 + uz^2)
+    uxy = sqrt(ux^2 + uy^2)
+    # first address uxy=0 and ux=0 special cases...
+    phi = 0 #arbitrary; phi not well defined at theta=0,pi
+    if uxy==0
+        if uz >= 0
+            theta = 0
+        else
+            theta = π
+        end
+        return (u, theta, phi)
+    end
+    theta = 0.5*pi - atan(uz/uxy)
+    # ux=0...
+    if ux == 0
+        if uy > 0
+            phi = 0.5*pi
+        elseif uy < 0
+            phi = 1.5*pi
+        end
+        return (u, theta, phi)
+    end
+    # Now, non-special cases...
+    if ux > 0 && uy > 0
+        phi = atan(uy/ux)
+    elseif ux < 0 && uy < 0
+        phi = atan(uy/ux) + pi
+    elseif ux < 0 && uy > 0
+        phi = atan(uy/ux) + pi
+    elseif ux > 0 && uy < 0
+        phi = atan(uy/ux) + 2*pi
+    end
+    return [u, theta, phi]
 end
