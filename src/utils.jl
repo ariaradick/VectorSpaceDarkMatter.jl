@@ -1,7 +1,3 @@
-import HCubature: hcubature
-using MCIntegration
-using Measurements
-
 """
     plm_norm(ell, m, x)
 The 'normalized' associated Legendre polynomials.
