@@ -1,0 +1,13 @@
+const VUNIT_c = 1.0 # [velocity] unit, in units of c.
+const EUNIT_eV = 1.0 # [energy] unit, in units of eV.
+const g_c = 1.0/VUNIT_c # The speed of light in units of [velocity]
+const km_s = (2.99792e5)^(-1) * g_c # 1 km/s in units of [velocity]
+const eV = 1.0/EUNIT_eV # 1 eV in units of [energy]
+const keV = 1e3*eV
+const MeV = 1e6*eV
+const mElec = 0.511*MeV / g_c^2 # electron mass, units of [energy] / [velocity]**2
+const alphaE = 1/137.036 # fine structure constant
+const qBohr = mElec*alphaE * g_c # in units of [energy]/[velocity]
+const _Q0_FDM_QBOHR = 1. # sets the ratio q0_fdm/qBohr.
+const q0_fdm = _Q0_FDM_QBOHR*qBohr # the reference momentum for F_DM form factor
+const SECONDS_PER_YEAR = 3.1536e7 # for future reference in rate normalization
