@@ -1,6 +1,3 @@
-import SpecialFunctions: besselix
-import LinearAlgebra: dot
-
 """
     GaussianF(c::Float64, uSph::Vector{Float64}, sigma::Float64)
 

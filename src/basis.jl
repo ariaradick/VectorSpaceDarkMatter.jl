@@ -1,5 +1,3 @@
-import SpecialFunctions: gamma
-
 # import FastTransforms: sphevaluate
 # ylm_fast(ell, m, θ, φ) = sphevaluate(θ, φ, ell, m)
 
@@ -118,7 +116,7 @@ phi_nlm(n, lm, xvec, radial_basis::RadialBasis) = phi_nlm((n, lm...), xvec, radi
 
 "Returns the base of support (x1, x2) for a given n and radial basis"
 function _base_of_support_n(n, radial_basis::Wavelet)
-    _haar_x13(n)
+    haar_x123(n)
 end
 
 function _base_of_support_n(n, radial_basis::Tophat)
