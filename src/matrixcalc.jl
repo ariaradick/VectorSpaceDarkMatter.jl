@@ -1,9 +1,32 @@
+struct ModelDMSM
+    fdm_n::Int
+    mX::Float64
+    mSM::Float64
+    deltaE::Float64
+end
 
-function getI_lvq_analytic(lnvnq, mX, fdm_n, DeltaE, muSM, 
-        v_basis::Wavelet, q_basis::Wavelet)
+function _getABval(n, basis::Wavelet)
+    haar_sph_value(n)
+end
+
+function _getABval(n, basis::Tophat)
+    x_n, x_np1 = basis.xi[n+1], basis.xi[n+2]
+    return tophat_value(x_n, x_np1)
+end
+
+function getI_lvq_analytic(lnvnq, model::ModelDMSM, v_basis::RadialBasis, 
+        q_basis::RadialBasis)
+    mX = model.mX
+    fdm_n = model.fdm_n
+    DeltaE = model.deltaE
+    mSM = model.mSM
+
     ell, nv, nq = lnvnq
     v0 = v_basis.umax
     q0 = q_basis.umax
+
+    muSM = mX*mSM/(mX+mSM)
+
     qStar = sqrt(2*mX*DeltaE)
     vStar = qStar/mX
 
@@ -11,9 +34,9 @@ function getI_lvq_analytic(lnvnq, mX, fdm_n, DeltaE, muSM,
                         *(q0_fdm/qStar)^(2*fdm_n))
     
     v_base = _base_of_support_n(nv, v_basis).*v0
-    AB_v = haar_sph_value(nv)
+    AB_v = _getABval(nv, v_basis)
     q_base = _base_of_support_n(nq, q_basis).*q0
-    AB_q = haar_sph_value(nq)
+    AB_q = _getABval(nq, q_basis)
 
     res = 0.0
     for i in eachindex(AB_v)
@@ -24,4 +47,22 @@ function getI_lvq_analytic(lnvnq, mX, fdm_n, DeltaE, muSM,
         end
     end
     return commonFactor*res
+end
+
+function I_lvq(lnvnq_max, model::ModelDMSM, v_basis::RadialBasis, 
+        q_basis::RadialBasis)
+    l_max, nv_max, nq_max = lnvnq_max
+
+    res = zeros(Float64, (nq_max+1, nv_max+1, l_max+1))
+
+    Threads.@threads for ell in 0:l_max
+        Threads.@threads for nv in 0:nv_max
+            Threads.@threads for nq in 0:nq_max
+                res[nq+1, nv+1, ell+1] = getI_lvq_analytic((ell, nv, nq),
+                                         model, v_basis, q_basis)
+            end
+        end
+    end
+
+    return res
 end

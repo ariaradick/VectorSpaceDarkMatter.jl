@@ -105,7 +105,7 @@ function ProjectF(f::f_uSph, nl_max::Tuple{Int,Int},
 
     res = zeros(Measurement, (n_max+1, N_lm))
 
-    for i in 1:N_lm
+    Threads.@threads for i in 1:N_lm
         ell, m = lm_vals[i]
         for n in n_vals
             res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
@@ -139,14 +139,14 @@ function ProjectF(g::GaussianF, nl_max::Tuple{Int,Int},
     gnl = zeros(Measurement, (n_max+1, l_max+1))
     res = zeros(Measurement, (n_max+1, N_lm))
 
-    for ell in 0:l_max
+    Threads.@threads for ell in 0:l_max
         for n in 0:n_max
             gnl[n+1, ell+1] = getGnl(g, n, ell, radial_basis, 
                               integ_params=integ_params)
         end
     end
 
-    for i in 1:N_lm
+    Threads.@threads for i in 1:N_lm
         ell, m = lm_vals[i]
         for n in 0:n_max
             res[n+1,i] = g.c * ylm_real(ell, m, θ_i, φ_i) * gnl[n+1,ell+1] /
@@ -232,31 +232,70 @@ function ProjectF(f, nlm_list::Vector{Tuple{Int,Int,Int}},
     return fc
 end
 
-"Evaluates the function f(uvec) by using fnlm coefficients and basis functions."
-function (pf::ProjectedF{Float64,T})(uvec) where T<:RadialBasis
-    u, θ, φ = uvec
-    x = u/pf.radial_basis.umax
-    n_vals = 0:(length(pf.fnlm[:,1])-1)
-
-    rad = radRn.(n_vals, 0, x, pf.radial_basis)
-    Y = ylm_real.(pf.lm, θ, φ)
-    basis_vals = Y' .* rad
-
-    return sum(basis_vals .* pf.fnlm)
+function _get_nvals_wavelet(n_star)
+    λ = hindex_LM(n_star)[1]
+    nvals = zeros(Int, λ+2)
+    nvals[1] = n_star
+    for i in 1:λ
+        nvals[i+1] = floor(nvals[i]/2)
+    end
+    return nvals
 end
 
-function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:RadialBasis}
+function _get_nvals(x, pf::ProjectedF{A, Wavelet}) where A<:Union{Float64, Measurement}
+    n_max = size(pf.fnlm)[1]-1
+    λ_max = hindex_LM(n_max)[1]
+    μ_star = [floor(Int, x*(2^λ_max))]
+    if (x*(2^λ_max))%1 ≈ 0.0
+        if x ≈ 1.0
+            μ_star[1] -= 1
+        else
+            push!(μ_star, μ_star[1]-1)
+        end
+    end
+    n_star = hindex_n.(λ_max, μ_star)
+    n_vals = union(_get_nvals_wavelet.(n_star)...)
+    return n_vals
+end
+
+function _get_nvals(x, pf::ProjectedF{A, Tophat}) where A<:Union{Float64, Measurement}
+    N_n = size(pf.fnlm)[1]
+    n_star = [floor(Int, N_n*x)]
+
+    if x ≈ 1.0
+        n_star[1] -= 1
+    elseif ((N_n*x)%1) == 0.0 && x ≉ 0.0
+        push!(n_star, n_star[1]-1)
+    end
+    return n_star
+end
+
+"Evaluates the function f(uvec) by using fnlm coefficients and basis functions."
+function (pf::ProjectedF{Float64,T})(uvec) where T<:Union{Wavelet, Tophat}
     u, θ, φ = uvec
     x = u/pf.radial_basis.umax
+    n_vals = _get_nvals(x, pf)
 
-    n_vals = 0:(length(pf.fnlm[:,1])-1)
-
-    rad = radRn.(n_vals, 0, x, (pf.radial_basis,))
-    Y = ylm_real.(pf.lm, θ, φ)
+    rad = VSDM.radRn.(n_vals, 0, u, (pf.radial_basis,))
+    Y = VSDM.ylm_real.(pf.lm, θ, φ)
     basis_vals = Y' .* rad
 
-    res = sum(basis_vals .* Measurements.value.(pf.fnlm))
-    err = sqrt(sum( (basis_vals .* Measurements.uncertainty.(pf.fnlm)).^2 ))
+    return sum(basis_vals .* pf.fnlm[n_vals.+1, :])
+end
+
+function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:Union{Wavelet, Tophat}}
+    u, θ, φ = uvec
+    x = u/pf.radial_basis.umax
+    n_vals = _get_nvals(x, pf)
+
+    rad = VSDM.radRn.(n_vals, 0, u, (pf.radial_basis,))
+    Y = VSDM.ylm_real.(pf.lm, θ, φ)
+    basis_vals = Y' .* rad
+
+    fnlm = @view pf.fnlm[n_vals.+1, :]
+
+    res = sum(basis_vals .* Measurements.value.(fnlm))
+    err = sqrt(sum( (basis_vals .* Measurements.uncertainty.(fnlm)).^2 ))
 
     return (res ± err)
 end
@@ -364,10 +403,10 @@ function writeFnlm(outfile, pf::ProjectedF)
     return
 end
 
-function readFnlm(infile, radial_basis::RadialBasis; dict=true)
+function readFnlm(infile, radial_basis::RadialBasis; dict=true, use_err=true)
     input = readdlm(infile, ','; comments=true)
     nrow, ncol = size(input)
-    if ncol == 4
+    if ncol == 4 || !use_err
         fnlm = Dict( (Int(input[i,1]), Int(input[i,2]), Int(input[i,3])) => 
                 input[i,4] for i in 1:nrow )
     elseif ncol == 5
@@ -383,7 +422,7 @@ function readFnlm(infile, radial_basis::RadialBasis; dict=true)
     end
 end
 
-function readFnlm(infile; dict=true)
+function readFnlm(infile; dict=true, use_err=true)
     B = Dict{String,String}()
     open(infile) do io
         for l in eachline(io)
@@ -401,5 +440,5 @@ function readFnlm(infile; dict=true)
         rb = Wavelet(parse(Float64, B["uMax"]))
     end
 
-    return readFnlm(infile, rb; dict=dict)
+    return readFnlm(infile, rb; dict=dict, use_err=use_err)
 end
