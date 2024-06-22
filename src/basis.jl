@@ -1,5 +1,3 @@
-import SpecialFunctions: gamma
-
 # import FastTransforms: sphevaluate
 # ylm_fast(ell, m, θ, φ) = sphevaluate(θ, φ, ell, m)
 
@@ -97,28 +95,46 @@ end
 Tophat(xi) = Tophat(xi, 1.0)
 
 """ Radial basis function for spherical Haar wavelets """
-function radRn(n, ell, x, basis::Wavelet)
-    haar_fn_x(n, x)
+function radRn(n, ell, u, basis::Wavelet)
+    haar_fn_x(n, u/basis.umax)
 end
 
 """ Radial basis function for spherical tophats """
-function radRn(n, ell, x, basis::Tophat)
+function radRn(n, ell, u, basis::Tophat)
+    x = u/basis.umax
     x_n, x_np1 = basis.xi[n+1], basis.xi[n+2]
-    tophat_value(x_n, x_np1)
+
+    if (x_n < x < x_np1)
+        return tophat_value(x_n, x_np1)
+    elseif x ≈ x_n
+        if x ≈ 0.0
+            return tophat_value(x_n, x_np1)
+        else
+            return 0.5*tophat_value(x_n, x_np1)
+        end
+    elseif x ≈ x_np1
+        if x ≈ 1.0
+            return tophat_value(x_n, x_np1)
+        else
+            return 0.5*tophat_value(x_n, x_np1)
+        end
+    else
+        return 0.0
+    end
 end
 
 """ Full basis functions with radial basis set by radial_basis """
-function phi_nlm(nlm, xvec, radial_basis::RadialBasis)
+function phi_nlm(nlm, uvec, radial_basis::RadialBasis)
     n, ell, m = nlm
-    x, θ, φ = xvec
-    return radRn(n, ell, x, radial_basis)*ylm_real(ell, m, θ, φ)
+    u, θ, φ = uvec
+    return radRn(n, ell, u, radial_basis)*ylm_real(ell, m, θ, φ)
 end
 
-phi_nlm(n, lm, xvec, radial_basis::RadialBasis) = phi_nlm((n, lm...), xvec, radial_basis)
+phi_nlm(n, lm, uvec, radial_basis::RadialBasis) = phi_nlm((n, lm...), uvec, radial_basis)
 
 "Returns the base of support (x1, x2) for a given n and radial basis"
 function _base_of_support_n(n, radial_basis::Wavelet)
-    _haar_x13(n)
+    haar_x123(n)
 end
 
 function _base_of_support_n(n, radial_basis::Tophat)
@@ -165,7 +181,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int},
             phi = 0.0
             xvec = [x_rth[1], x_rth[2], phi]
             uvec = [x_rth[1]*u_max, x_rth[2], phi]
-            dV_sph(xvec)*f.f(uvec)*phi_nlm(nlm, xvec, radial_basis)
+            dV_sph(xvec)*f.f(uvec)*phi_nlm(nlm, uvec, radial_basis)
         end
         fnlm = (0.0 ± 0.0)
         for i in 1:(length(x_support)-1)
@@ -186,7 +202,7 @@ function getFnlm(f::f_uSph, nlm::Tuple{Int, Int, Int},
     
     function integrand_fnlm(xvec)
         uvec = [xvec[1]*u_max, xvec[2], xvec[3]]
-        dV_sph(xvec) * f.f(uvec) * phi_nlm(nlm, xvec, radial_basis)
+        dV_sph(xvec) * f.f(uvec) * phi_nlm(nlm, uvec, radial_basis)
     end
 
     fnlm = (0.0 ± 0.0)

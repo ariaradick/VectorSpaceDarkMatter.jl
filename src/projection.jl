@@ -1,5 +1,3 @@
-using DelimitedFiles
-
 """
     ProjectedF{A, B}(fnlm::Matrix{A}, radial_basis::B)
 
@@ -14,19 +12,59 @@ struct ProjectedF{A, B<:RadialBasis}
     fnlm::Matrix{A}
     lm::Vector{Tuple{Int64,Int64}}
     radial_basis::B
-    z_even::Bool
-    phi_even::Bool
-    phi_symmetric::Bool
-
-    function ProjectedF(fnlm::Matrix{A}, lm, radial_basis::RadialBasis; z_even=false,
-        phi_even=false, phi_symmetric=false) where A <: Union{Float64,Measurement}
-        B = typeof(radial_basis)
-        new{A,B}(fnlm, lm, radial_basis, z_even, phi_even, phi_symmetric)
-    end
 end
 
 """
-    ProjectedF(f, nl_max, radial_basis::RadialBasis; 
+    FCoeffs{A, B}(fnlm::Dict{Tuple{Int64,Int64,Int64}, A},
+        radial_basis::B)
+
+Stores the <f | nlm> coefficients as a dictionary with (n,l,m) => f_nlm
+and the radial basis that was used to calculate them. It is assumed
+that spherical harmonics were used for the angular parts. `A` is 
+the element type of the dict that stores `fnlm` coefficients (should 
+be either `Float64` or `Measurement`). `B` is the type of radial basis.
+"""
+struct FCoeffs{A, B<:RadialBasis}
+    fnlm::Dict{Tuple{Int64,Int64,Int64}, A}
+    radial_basis::B
+end
+
+function FCoeffs(rb::RadialBasis; use_measurements=false)
+    if use_measurements
+        dtype = Measurement{Float64}
+    else
+        dtype = Float64
+    end
+    return FCoeffs(Dict{Tuple{Int64,Int64,Int64}, dtype}(), rb)
+end
+
+function ProjectedF(fcoeffs::FCoeffs)
+    n_max = maximum([k[1] for k in keys(fcoeffs.fnlm)])
+    lm_vals = sort( unique([(k[2], k[3]) for k in keys(fcoeffs.fnlm)]) )
+    lm_dict = Dict( lm_vals[i] => i for i in eachindex(lm_vals) )
+    N_lm = length(lm_vals)
+
+    res = zeros(valtype(fcoeffs.fnlm), (n_max+1, N_lm))
+
+    for (k,v) in fcoeffs.fnlm
+        n,l,m = k
+        lm_idx = lm_dict[(l,m)]
+        res[n+1, lm_idx] = v
+    end
+
+    return ProjectedF(res, lm_vals, fcoeffs.radial_basis)
+end
+
+function FCoeffs(pf::ProjectedF)
+    n_vals = 0:(length(pf.fnlm[:,1])-1)
+    nlm = [(n,lm...) for lm in pf.lm for n in n_vals]
+
+    res = Dict( nlm[i] => pf.fnlm[i] for i in eachindex(nlm) )
+    return FCoeffs(res, pf.radial_basis)
+end
+
+"""
+    ProjectF(f, nl_max, radial_basis::RadialBasis; 
                     use_measurements=false, rtol=1e-6)
 
 Evaluates <f | nlm> at each (n,l,m) up to nl_max = (n_max, l_max) and returns
@@ -47,33 +85,18 @@ the result as a `ProjectedF`.
     these are kwargs for `hcubature`. If `:vegas` or `:vegasmc`, these are
     kwargs for `MCIntegration`'s `integrate` method.
 """
-function ProjectedF(f, nl_max, radial_basis::RadialBasis; 
-                    use_measurements=false, integ_method=:cubature,
+function ProjectF(f, nl_max::Tuple{Int,Int}, radial_basis::RadialBasis; 
+                    dict=false, use_measurements=false, integ_method=:cubature,
                     integ_params=(;))
-    n_max, l_max = nl_max
-    n_vals = 0:n_max
-    lm_vals = LM_vals(l_max)
-    N_lm = length(lm_vals)
-
-    res = zeros(Measurement, (n_max+1, N_lm))
-
-    for i in 1:N_lm
-        ell, m = lm_vals[i]
-        for n in n_vals
-            res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
-                            integ_method=integ_method,
-                            integ_params=integ_params)
-        end
-    end    
-    if use_measurements
-        return ProjectedF(res, radial_basis)
-    else
-        return ProjectedF(Measurements.value.(res), radial_basis)
-    end
+    fuSph = f_uSph(f)
+    ProjectF(fuSph, nl_max, radial_basis; dict=dict,
+    use_measurements=use_measurements, integ_method=integ_method,
+    integ_params=integ_params)
 end
 
-function ProjectedF(f::f_uSph, nl_max, radial_basis::RadialBasis; 
-    use_measurements=false, integ_method=:cubature, integ_params=(;))
+function ProjectF(f::f_uSph, nl_max::Tuple{Int,Int}, 
+        radial_basis::RadialBasis; dict=false, use_measurements=false, 
+        integ_method=:cubature, integ_params=(;))
 
     n_max, l_max = nl_max
     n_vals = 0:n_max
@@ -82,23 +105,31 @@ function ProjectedF(f::f_uSph, nl_max, radial_basis::RadialBasis;
 
     res = zeros(Measurement, (n_max+1, N_lm))
 
-    for i in 1:N_lm
+    Threads.@threads for i in 1:N_lm
         ell, m = lm_vals[i]
         for n in n_vals
             res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
                             integ_method=integ_method,
                             integ_params=integ_params)
         end
-    end    
+    end
+
     if use_measurements
-        return ProjectedF(res, lm_vals, radial_basis)
+        pf = ProjectedF(res, lm_vals, radial_basis)
     else
-        return ProjectedF(Measurements.value.(res), lm_vals, radial_basis)
+        pf = ProjectedF(Measurements.value.(res), lm_vals, radial_basis)
+    end
+
+    if dict
+        return FCoeffs(pf)
+    else
+        return pf
     end
 end
 
-function ProjectedF(g::GaussianF, nl_max, radial_basis::RadialBasis;
-                    use_measurements=false, integ_params=(;))
+function ProjectF(g::GaussianF, nl_max::Tuple{Int,Int}, 
+        radial_basis::RadialBasis; dict=false, use_measurements=false, 
+        integ_params=(;))
 
     u_i, θ_i, φ_i = g.uSph
     n_max, l_max = nl_max
@@ -108,14 +139,14 @@ function ProjectedF(g::GaussianF, nl_max, radial_basis::RadialBasis;
     gnl = zeros(Measurement, (n_max+1, l_max+1))
     res = zeros(Measurement, (n_max+1, N_lm))
 
-    for ell in 0:l_max
+    Threads.@threads for ell in 0:l_max
         for n in 0:n_max
             gnl[n+1, ell+1] = getGnl(g, n, ell, radial_basis, 
                               integ_params=integ_params)
         end
     end
 
-    for i in 1:N_lm
+    Threads.@threads for i in 1:N_lm
         ell, m = lm_vals[i]
         for n in 0:n_max
             res[n+1,i] = g.c * ylm_real(ell, m, θ_i, φ_i) * gnl[n+1,ell+1] /
@@ -124,19 +155,26 @@ function ProjectedF(g::GaussianF, nl_max, radial_basis::RadialBasis;
     end
 
     if use_measurements
-        return ProjectedF(res, lm_vals, radial_basis)
+        pf = ProjectedF(res, lm_vals, radial_basis)
     else
-        return ProjectedF(Measurements.value.(res), lm_vals, radial_basis)
+        pf = ProjectedF(Measurements.value.(res), lm_vals, radial_basis)
+    end
+
+    if dict
+        return FCoeffs(pf)
+    else
+        return pf
     end
 end
 
-function ProjectedF(g::Vector{GaussianF}, nl_max, radial_basis::RadialBasis;
-                    use_measurements=false, integ_params=(;))
+function ProjectF(g::Vector{GaussianF}, nl_max::Tuple{Int,Int}, 
+        radial_basis::RadialBasis; dict=false, use_measurements=false,
+        integ_params=(;))
     pf = Vector{ProjectedF}()
     lm_vals = LM_vals(nl_max[2])
 
     for gg in g
-        push!(pf, ProjectedF(gg, nl_max, radial_basis; 
+        push!(pf, ProjectF(gg, nl_max, radial_basis; 
               use_measurements=use_measurements, integ_params=integ_params))
     end
 
@@ -144,53 +182,120 @@ function ProjectedF(g::Vector{GaussianF}, nl_max, radial_basis::RadialBasis;
         fnlm_vals = sum([Measurements.value.(p.fnlm) for p in pf])
         fnlm_errs = sqrt.(sum([Measurements.uncertainty.(p.fnlm).^2 for p in pf]))
         fnlm = (fnlm_vals .± fnlm_errs)
-        return ProjectedF(fnlm, lm_vals, radial_basis)
+        pf = ProjectedF(fnlm, lm_vals, radial_basis)
 
     else
         fnlm = sum([p.fnlm for p in pf])
-        return ProjectedF(fnlm, lm_vals, radial_basis)
+        pf = ProjectedF(fnlm, lm_vals, radial_basis)
     end
+
+    if dict
+        return FCoeffs(pf)
+    else
+        return pf
+    end
+end
+
+function update!(fc::FCoeffs, f, nlm::Tuple{Int,Int,Int}; kwargs...)
+    fnlm = getFnlm(f, nlm, fc.radial_basis; kwargs...)
+    if valtype(fc.fnlm) <: Measurement
+        fc.fnlm[nlm] = fnlm
+    elseif valtype(fc.fnlm) == Float64
+        fc.fnlm[nlm] = fnlm.val
+    end
+end
+
+function update!(fc::FCoeffs, g::Vector{GaussianF}, nlm::Tuple{Int,Int,Int}; 
+        kwargs...)
+    fnlms = zeros(Measurement{Float64}, length(g))
+    for i in eachindex(g)
+        fnlms[i] = getFnlm(g[i], nlm, fc.radial_basis; kwargs...)
+    end
+    if valtype(fc.fnlm) <: Measurement
+        fnlm_val = sum(Measurements.value.(fnlms))
+        fnlm_err = sqrt(sum(Measurements.uncertainty.(fnlms).^2))
+        fc.fnlm[nlm] = (fnlm_val ± fnlm_err)
+    elseif valtype(fc.fnlm) == Float64
+        fc.fnlm[nlm] = sum(Measurements.value.(fnlms))
+    end
+end
+
+function update!(fc::FCoeffs, f, nlm::Vector{Tuple{Int,Int,Int}}; kwargs...)
+    update!.((fc,), (f,), nlm; kwargs...)
+end
+
+function ProjectF(f, nlm_list::Vector{Tuple{Int,Int,Int}},
+    radial_basis::RadialBasis; use_measurements=false, kwargs...)
+    fc = FCoeffs(radial_basis; use_measurements=use_measurements)
+
+    update!(fc, f, nlm_list; kwargs...)
+    return fc
+end
+
+function _get_nvals_wavelet(n_star)
+    λ = hindex_LM(n_star)[1]
+    nvals = zeros(Int, λ+2)
+    nvals[1] = n_star
+    for i in 1:λ
+        nvals[i+1] = floor(nvals[i]/2)
+    end
+    return nvals
+end
+
+function _get_nvals(x, pf::ProjectedF{A, Wavelet}) where A<:Union{Float64, Measurement}
+    n_max = size(pf.fnlm)[1]-1
+    λ_max = hindex_LM(n_max)[1]
+    μ_star = [floor(Int, x*(2^λ_max))]
+    if (x*(2^λ_max))%1 ≈ 0.0
+        if x ≈ 1.0
+            μ_star[1] -= 1
+        else
+            push!(μ_star, μ_star[1]-1)
+        end
+    end
+    n_star = hindex_n.(λ_max, μ_star)
+    n_vals = union(_get_nvals_wavelet.(n_star)...)
+    return n_vals
+end
+
+function _get_nvals(x, pf::ProjectedF{A, Tophat}) where A<:Union{Float64, Measurement}
+    N_n = size(pf.fnlm)[1]
+    n_star = [floor(Int, N_n*x)]
+
+    if x ≈ 1.0
+        n_star[1] -= 1
+    elseif ((N_n*x)%1) == 0.0 && x ≉ 0.0
+        push!(n_star, n_star[1]-1)
+    end
+    return n_star
 end
 
 "Evaluates the function f(uvec) by using fnlm coefficients and basis functions."
-function (pf::ProjectedF{Float64,T})(uvec) where T<:RadialBasis
+function (pf::ProjectedF{Float64,T})(uvec) where T<:Union{Wavelet, Tophat}
     u, θ, φ = uvec
     x = u/pf.radial_basis.umax
-    n_vals = 0:(length(pf.fnlm[:,1])-1)
-    N_lm = length(pf.lm)
+    n_vals = _get_nvals(x, pf)
 
-    basis_vals = zeros(Float64, size(pf.fnlm))
-    for i in 1:N_lm
-        ell, m = pf.lm[i]
-        y = ylm_real(ell, m, θ, φ)
-        for n in n_vals
-            rad = radRn(n, ell, x, pf.radial_basis)
-            basis_vals[n+1, i] = rad*y
-        end
-    end
+    rad = VSDM.radRn.(n_vals, 0, u, (pf.radial_basis,))
+    Y = VSDM.ylm_real.(pf.lm, θ, φ)
+    basis_vals = Y' .* rad
 
-    return sum(basis_vals .* pf.fnlm)
+    return sum(basis_vals .* pf.fnlm[n_vals.+1, :])
 end
 
-function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:RadialBasis}
+function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:Union{Wavelet, Tophat}}
     u, θ, φ = uvec
     x = u/pf.radial_basis.umax
+    n_vals = _get_nvals(x, pf)
 
-    n_vals = 0:(length(pf.fnlm[:,1])-1)
-    N_lm = length(pf.lm)
+    rad = VSDM.radRn.(n_vals, 0, u, (pf.radial_basis,))
+    Y = VSDM.ylm_real.(pf.lm, θ, φ)
+    basis_vals = Y' .* rad
 
-    basis_vals = zeros(Float64, size(pf.fnlm))
-    for i in 1:N_lm
-        ell, m = pf.lm[i]
-        y = ylm_real(ell, m, θ, φ)
-        for n in n_vals
-            rad = radRn(n, ell, x, pf.radial_basis)
-            basis_vals[n+1, i] = rad*y
-        end
-    end
+    fnlm = @view pf.fnlm[n_vals.+1, :]
 
-    res = sum(basis_vals .* Measurements.value.(pf.fnlm))
-    err = sqrt(sum( (basis_vals .* Measurements.uncertainty.(pf.fnlm)).^2 ))
+    res = sum(basis_vals .* Measurements.value.(fnlm))
+    err = sqrt(sum( (basis_vals .* Measurements.uncertainty.(fnlm)).^2 ))
 
     return (res ± err)
 end
@@ -220,6 +325,58 @@ function norm_energy(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
     return (res ± res_err) * pf.radial_basis.umax^3
 end
 
+function norm_energy(fc::FCoeffs{Float64,T}) where T<:RadialBasis
+    sum(collect(values(fc.fnlm)).^2) * fc.radial_basis.umax^3
+end
+
+function norm_energy(fc::FCoeffs{A,B}) where {A<:Measurement, B<:RadialBasis}
+    fnlm = collect(values(fc.fnlm))
+    vals = Measurements.value.(fnlm)
+    errs = Measurements.uncertainty.(fnlm)
+
+    res = sum(vals .^ 2)
+    err_arr = @. abs(2*vals*errs)
+    res_err = sqrt(sum(err_arr.^2))
+
+    return (res ± res_err) * fc.radial_basis.umax^3
+end
+
+function writeFnlm(outfile, fc::FCoeffs)
+    vtype = valtype(fc.fnlm)
+
+    rb_type = typeof(fc.radial_basis)
+    rb_max = fc.radial_basis.umax
+
+    nmax = maximum([k[1] for k in keys(fc.fnlm)])
+    lmax = maximum([k[2] for k in keys(fc.fnlm)])
+
+    q = collect(fc.fnlm)
+
+    if vtype == Float64
+        res = zeros(Float64, (length(q), 4))
+        for i in eachindex(q)
+            res[i,:] = [q[i][1]..., q[i][2]]
+        end
+    elseif vtype <: Measurement
+        res = zeros(Float64, (length(q), 5))
+        for i in eachindex(q)
+            res[i,:] = [q[i][1]..., q[i][2].val, q[i][2].err]
+        end
+    end
+
+    open(outfile, "w") do io
+        write(io, "# type: $rb_type, uMax: $rb_max, nMax: $nmax, ellMax: $lmax\n")
+        if vtype == Float64
+            write(io, "# n, l, m, f\n")
+        elseif vtype <: Measurement
+            write(io, "# n, l, m, f.val, f.err\n")
+        end
+        writedlm(io, res, ',')
+    end
+
+    return
+end
+
 function writeFnlm(outfile, pf::ProjectedF)
     n_vals = 0:(length(pf.fnlm[:,1])-1)
     nlm = [(n,lm...) for lm in pf.lm for n in n_vals]
@@ -231,8 +388,7 @@ function writeFnlm(outfile, pf::ProjectedF)
     lmax = Int(maximum([lm[1] for lm in pf.lm]))
 
     open(outfile, "w") do io
-        write(io, "# type = $rb_type, umax = $rb_max, n_max = $nmax, l_max = $lmax\n")
-        write(io, "# z_even = $(pf.z_even), phi_even = $(pf.phi_even), phi_symmetric = $(pf.phi_symmetric)\n")
+        write(io, "# type: $rb_type, uMax: $rb_max, nMax: $nmax, ellMax: $lmax\n")
         if eltype(pf.fnlm) == Float64
             res = hcat([[nlm[i]..., pf.fnlm[i]] for i in eachindex(nlm)]...)'
             write(io, "# n, l, m, f\n")
@@ -247,6 +403,42 @@ function writeFnlm(outfile, pf::ProjectedF)
     return
 end
 
-function _readFnlm(infile)
-    readdlm(infile, ','; comments=true)
+function readFnlm(infile, radial_basis::RadialBasis; dict=true, use_err=true)
+    input = readdlm(infile, ','; comments=true)
+    nrow, ncol = size(input)
+    if ncol == 4 || !use_err
+        fnlm = Dict( (Int(input[i,1]), Int(input[i,2]), Int(input[i,3])) => 
+                input[i,4] for i in 1:nrow )
+    elseif ncol == 5
+        fnlm = Dict( (Int(input[i,1]), Int(input[i,2]), Int(input[i,3])) => 
+                (input[i,4] ± input[i,5]) for i in 1:nrow )
+    end
+
+    fc = FCoeffs(fnlm, radial_basis)
+    if dict
+        return fc
+    else
+        return ProjectedF(fc)
+    end
+end
+
+function readFnlm(infile; dict=true, use_err=true)
+    B = Dict{String,String}()
+    open(infile) do io
+        for l in eachline(io)
+            if l[1] == '#'
+                stuff = split.(split(filter(x -> !isspace(x), l[2:end]), ','), ':')
+                filter!(x -> length(x) == 2, stuff)
+                for s in stuff
+                    B[s[1]] = s[2]
+                end
+                break
+            end
+        end
+    end
+    if B["type"] in ["Wavelet", "wavelet"]
+        rb = Wavelet(parse(Float64, B["uMax"]))
+    end
+
+    return readFnlm(infile, rb; dict=dict, use_err=use_err)
 end

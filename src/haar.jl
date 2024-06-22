@@ -19,7 +19,7 @@ end
 """Base of support of nth wavelet, including midpoint."""
 function haar_x123(n::Int)
     if n==0
-        return [0.0, 0.5, 1.0]
+        return [0.0, 1.0]
     end
     L,M = hindex_LM(n)
     x1 = 2.0^(-L) * M
