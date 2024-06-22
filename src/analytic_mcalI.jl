@@ -170,11 +170,11 @@ function mI_star(ell, n, v12_star, q12_star)
 
     includeRegion = [true, true, true]
     if q_a==q_b
-        includeRegion[0] = false
+        includeRegion[1] = false
     end
 
     if q_c==q_d
-        includeRegion[2] = false
+        includeRegion[3] = false
     end
 
     if v1>1.0
@@ -183,13 +183,13 @@ function mI_star(ell, n, v12_star, q12_star)
         end
     end
     mI_0,mI_1,mI_2 = 0.0, 0.0, 0.0
-    if includeRegion[0]
+    if includeRegion[1]
         mI_0 = u_ln_vq_int(ell, n, v2, [q_a, q_b])
     end
-    if includeRegion[1]
+    if includeRegion[2]
         mI_1 = t_ln_vq_int(ell, n, [v1,v2], [q_b, q_c])
     end
-    if includeRegion[2]
+    if includeRegion[3]
         mI_2 = u_ln_vq_int(ell, n, v2, [q_c, q_d])
     end
     return mI_0 + mI_1 + mI_2
