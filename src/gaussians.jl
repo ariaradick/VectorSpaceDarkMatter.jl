@@ -34,11 +34,11 @@ function (g::GaussianF)(uvec)
 end
 
 "Integrand for G_nl."
-function normG_nli_integrand(g::GaussianF, n, ell, u, basis::RadialBasis)
+function normG_nli_integrand(g::GaussianF, n, ell, x, basis::RadialBasis)
     u_i = g.uSph[1]
     sigma_i = g.sigma
 
-    z = (2*u_i*u)/sigma_i^2
+    z = (2*u_i*x)/sigma_i^2
 
     if z == 0.0
         if ell == 0
@@ -50,10 +50,10 @@ function normG_nli_integrand(g::GaussianF, n, ell, u, basis::RadialBasis)
         ivefact = sqrt(8/z) * besselix(ell+0.5, z)
     end
 
-    measure = u^2/sigma_i^3
-    expfact = exp(-(u-u_i)^2 / sigma_i^2)
+    measure = x^2/sigma_i^3
+    expfact = exp(-(x-u_i)^2 / sigma_i^2)
 
-    return measure * expfact * ivefact * radRn(n, ell, u, basis)
+    return measure * expfact * ivefact * radRn(n, ell, x*basis.umax, basis)
 end
 
 "Scales the range of a `GaussianF`"
