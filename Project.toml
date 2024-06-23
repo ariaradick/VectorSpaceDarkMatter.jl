@@ -14,6 +14,7 @@ PolyLog = "85e3b03c-9856-11eb-0374-4dc1f8670e7f"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 
 [compat]
+DelimitedFiles = "1"
 HCubature = "1"
 HypergeometricFunctions = "0.3"
 MCIntegration = "0.4"
