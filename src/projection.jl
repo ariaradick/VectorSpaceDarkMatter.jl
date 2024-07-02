@@ -105,12 +105,25 @@ function ProjectF(f::f_uSph, nl_max::Tuple{Int,Int},
 
     res = zeros(Measurement, (n_max+1, N_lm))
 
+    if integ_method == :cubature
+        if !(:atol in keys(integ_params))
+            f000 = getFnlm(f, (0,0,0), radial_basis; integ_params=integ_params)
+            if :rtol in keys(integ_params)
+                int_pars = (integ_params..., atol=f000*integ_params.rtol)
+            else
+                int_pars = (integ_params..., atol=f000*1e-6)
+            end
+        end
+    else
+        int_pars = integ_params
+    end
+
     Threads.@threads for i in 1:N_lm
         ell, m = lm_vals[i]
         for n in n_vals
             res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
                             integ_method=integ_method,
-                            integ_params=integ_params)
+                            integ_params=int_pars)
         end
     end
 
@@ -365,11 +378,11 @@ function writeFnlm(outfile, fc::FCoeffs)
     end
 
     open(outfile, "w") do io
-        write(io, "# type: $rb_type, uMax: $rb_max, nMax: $nmax, ellMax: $lmax\n")
+        write(io, "#, type: $rb_type, uMax: $rb_max, nMax: $nmax, ellMax: $lmax\n")
         if vtype == Float64
-            write(io, "# n, l, m, f\n")
+            write(io, "#, n, l, m, f\n")
         elseif vtype <: Measurement
-            write(io, "# n, l, m, f.val, f.err\n")
+            write(io, "#, n, l, m, f.val, f.err\n")
         end
         writedlm(io, res, ',')
     end
@@ -388,14 +401,14 @@ function writeFnlm(outfile, pf::ProjectedF)
     lmax = Int(maximum([lm[1] for lm in pf.lm]))
 
     open(outfile, "w") do io
-        write(io, "# type: $rb_type, uMax: $rb_max, nMax: $nmax, ellMax: $lmax\n")
+        write(io, "#, type: $rb_type, uMax: $rb_max, nMax: $nmax, ellMax: $lmax\n")
         if eltype(pf.fnlm) == Float64
             res = hcat([[nlm[i]..., pf.fnlm[i]] for i in eachindex(nlm)]...)'
-            write(io, "# n, l, m, f\n")
+            write(io, "#, n, l, m, f\n")
             writedlm(io, res, ',')
         elseif eltype(pf.fnlm) <: Measurement
             res = hcat([[nlm[i]..., pf.fnlm[i].val, pf.fnlm[i].err] for i in eachindex(nlm)]...)'
-            write(io, "# n, l, m, f.val, f.err\n")
+            write(io, "#, n, l, m, f.val, f.err\n")
             writedlm(io, res, ',')
         end
     end
