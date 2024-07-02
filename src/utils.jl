@@ -93,7 +93,7 @@ function LM_vals(lmax; z_even=false, phi_even=false, phi_symmetric=false)
     if phi_symmetric
         return [(ell,0) for ell in 0:z:lmax]
     elseif phi_even
-        return [(ell,m) for ell in 0:lmax for m in -ell:z:ell if (m%2 == 0)]
+        return [(ell,m) for ell in 0:lmax for m in (ell%2):z:ell if (m%2 == 0)]
     else
         return [(ell,m) for ell in 0:lmax for m in -ell:z:ell]
     end
@@ -169,7 +169,7 @@ function cart_to_sph(uXYZ)
         else
             theta = π
         end
-        return (u, theta, phi)
+        return [u, theta, phi]
     end
     theta = 0.5*pi - atan(uz/uxy)
     # ux=0...
@@ -179,7 +179,7 @@ function cart_to_sph(uXYZ)
         elseif uy < 0
             phi = 1.5*pi
         end
-        return (u, theta, phi)
+        return [u, theta, phi]
     end
     # Now, non-special cases...
     if ux > 0 && uy > 0
