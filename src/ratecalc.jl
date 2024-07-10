@@ -64,11 +64,20 @@ function get_mcalK_ell(pfv::ProjectedF, pfq::ProjectedF, ell, I_ell;
     end
 end
 
-function rate(R::Quaternion, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF)
+function rate(R::Quaternion, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
+              ell_max=nothing)
+
     ℓmax = min(maximum([lm[1] for lm in pfv.lm]),
                maximum([lm[1] for lm in pfq.lm]))
+    if !(isnothing(ell_max))
+        ℓmax = min(ell_max, ℓmax)
+    end
+        
     nv_max = size(pfv.fnlm)[1]-1
     nq_max = size(pfq.fnlm)[1]-1
+
+    vmax = pfv.radial_basis.umax
+    qmax = pfq.radial_basis.umax
     
     G = G_matrices(R, ℓmax)
     mcI = I_lvq((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
@@ -76,15 +85,21 @@ function rate(R::Quaternion, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF)
            use_measurements=false) for ell in 0:ℓmax]
     
     return sum(tr.( [ dot(mcK[ell+1], g) for (ell,g) in 
-           zip(0:ℓmax, D_iterator(G, ℓmax)) ] )) * pfv.umax^2 / pfq.umax
+           zip(0:ℓmax, D_iterator(G, ℓmax)) ] )) * vmax^2 / qmax
 end
 
 function rate(R::Vector{QuaternionF64}, model::ModelDMSM, pfv::ProjectedF, 
-              pfq::ProjectedF)
+              pfq::ProjectedF; ell_max=nothing)
     ℓmax = min(maximum([lm[1] for lm in pfv.lm]),
                maximum([lm[1] for lm in pfq.lm]))
+   if !(isnothing(ell_max))
+       ℓmax = min(ell_max, ℓmax)
+   end
     nv_max = size(pfv.fnlm)[1]-1
     nq_max = size(pfq.fnlm)[1]-1
+
+    vmax = pfv.radial_basis.umax
+    qmax = pfq.radial_basis.umax
 
     D = D_prep(ℓmax)
     G = G_matrices(quaternion(1.0), ℓmax)
@@ -99,5 +114,5 @@ function rate(R::Vector{QuaternionF64}, model::ModelDMSM, pfv::ProjectedF,
         res[i] = sum(tr.( [ dot(mcK[ell+1], g) for (ell,g) in 
                  zip(0:ℓmax, D_iterator(G, ℓmax)) ] ))
     end
-    return res .* pfv.umax^2 ./ pfq.umax
+    return res .* vmax^2 ./ qmax
 end
