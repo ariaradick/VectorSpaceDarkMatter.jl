@@ -53,12 +53,12 @@ function I_lvq(lnvnq_max, model::ModelDMSM, v_basis::RadialBasis,
         q_basis::RadialBasis)
     l_max, nv_max, nq_max = lnvnq_max
 
-    res = zeros(Float64, (nq_max+1, nv_max+1, l_max+1))
+    res = zeros(Float64, (nv_max+1, nq_max+1, l_max+1))
 
     Threads.@threads for ell in 0:l_max
-        Threads.@threads for nv in 0:nv_max
-            Threads.@threads for nq in 0:nq_max
-                res[nq+1, nv+1, ell+1] = getI_lvq_analytic((ell, nv, nq),
+        Threads.@threads for nq in 0:nq_max
+            Threads.@threads for nv in 0:nv_max
+                res[nv+1, nq+1, ell+1] = getI_lvq_analytic((ell, nv, nq),
                                          model, v_basis, q_basis)
             end
         end
