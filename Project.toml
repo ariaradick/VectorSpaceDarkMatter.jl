@@ -16,6 +16,7 @@ SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 SphericalFunctions = "af6d55de-b1f7-4743-b797-0829a72cf84e"
 
 [compat]
+DelimitedFiles = "1"
 HCubature = "1"
 HypergeometricFunctions = "0.3"
 MCIntegration = "0.4"
