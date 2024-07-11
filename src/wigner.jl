@@ -35,7 +35,7 @@ function G_matrices(D_matrices, ell_max)
     return G
 end
 
-function G_matrices(R::Quaternion, ell_max)
+function G_matrices(R::T, ell_max) where T<:Union{Quaternion,Rotor}
     D = D_matrices(R, ell_max)
     return G_matrices(D, ell_max)
 end
