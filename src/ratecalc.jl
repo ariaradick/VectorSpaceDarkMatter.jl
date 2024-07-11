@@ -64,8 +64,9 @@ function get_mcalK_ell(pfv::ProjectedF, pfq::ProjectedF, ell, I_ell;
     end
 end
 
-function rate(R::Quaternion, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
-              ell_max=nothing)
+function rate(R::T, model::ModelDMSM, pfv::ProjectedF, 
+              pfq::ProjectedF; ell_max=nothing, use_measurements=false
+              ) where T<:Union{Quaternion,Rotor}
 
     ℓmax = min(maximum([lm[1] for lm in pfv.lm]),
                maximum([lm[1] for lm in pfq.lm]))
@@ -81,15 +82,15 @@ function rate(R::Quaternion, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
     
     G = G_matrices(R, ℓmax)
     mcI = I_lvq((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
-    mcK = [get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
-           use_measurements=false) for ell in 0:ℓmax]
-    
-    return sum(tr.( [ dot(mcK[ell+1], g) for (ell,g) in 
-           zip(0:ℓmax, D_iterator(G, ℓmax)) ] )) * vmax^2 / qmax
+    mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
+           use_measurements=use_measurements) for ell in 0:ℓmax]))
+
+    return dot(mcK, G)*vmax^5/qmax
 end
 
-function rate(R::Vector{QuaternionF64}, model::ModelDMSM, pfv::ProjectedF, 
-              pfq::ProjectedF; ell_max=nothing)
+function rate(R::Vector{T}, model::ModelDMSM, pfv::ProjectedF, 
+              pfq::ProjectedF; ell_max=nothing, use_measurements=false
+              ) where T<:Union{Quaternion,Rotor}
     ℓmax = min(maximum([lm[1] for lm in pfv.lm]),
                maximum([lm[1] for lm in pfq.lm]))
    if !(isnothing(ell_max))
@@ -102,17 +103,16 @@ function rate(R::Vector{QuaternionF64}, model::ModelDMSM, pfv::ProjectedF,
     qmax = pfq.radial_basis.umax
 
     D = D_prep(ℓmax)
-    G = G_matrices(quaternion(1.0), ℓmax)
+    G = G_matrices(one(RotorF64), ℓmax)
     mcI = I_lvq((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
-    mcK = [get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
-           use_measurements=false) for ell in 0:ℓmax]
+    mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
+           use_measurements=use_measurements) for ell in 0:ℓmax]))
 
     res = zeros(Float64, length(R))
     for i in eachindex(R)
         D_matrices!(D, R[i])
         G_matrices!(G, D)
-        res[i] = sum(tr.( [ dot(mcK[ell+1], g) for (ell,g) in 
-                 zip(0:ℓmax, D_iterator(G, ℓmax)) ] ))
+        res[i] = dot(mcK,G)
     end
-    return res .* vmax^2 ./ qmax
+    return res .* vmax^5 ./ qmax
 end
