@@ -76,6 +76,9 @@ the result as a `ProjectedF`.
 
 `radial_basis` : Either a `Wavelet` or `Tophat`
 
+`dict` : If true, returns an `FCoeffs` instead of a `ProjectedF`, which stores
+    the coefficients as a dictionary instead.
+
 `use_measurements` : If `true`, will give the results as a measurement with
     uncertainty given by the integration error.
 
@@ -209,6 +212,13 @@ function ProjectF(g::Vector{GaussianF}, nl_max::Tuple{Int,Int},
     end
 end
 
+"""
+    update!(fc::FCoeffs, f, nlm::Tuple{Int,Int,Int}; kwargs...)
+
+Evaluates a particular (n,l,m) coefficient for the function f and the radial
+basis fc.radial_basis, and stores the result in fc.fnlm[(n,l,m)]. Will
+overwrite existing data. kwargs correspond to the kwargs for `getFnlm`
+"""
 function update!(fc::FCoeffs, f, nlm::Tuple{Int,Int,Int}; kwargs...)
     fnlm = getFnlm(f, nlm, fc.radial_basis; kwargs...)
     if valtype(fc.fnlm) <: Measurement
@@ -233,6 +243,7 @@ function update!(fc::FCoeffs, g::Vector{GaussianF}, nlm::Tuple{Int,Int,Int};
     end
 end
 
+"If called with a vector of nlm tuples, runs update! for each (n,l,m)"
 function update!(fc::FCoeffs, f, nlm::Vector{Tuple{Int,Int,Int}}; kwargs...)
     update!.((fc,), (f,), nlm; kwargs...)
 end
@@ -293,7 +304,7 @@ function (pf::ProjectedF{Float64,T})(uvec) where T<:Union{Wavelet, Tophat}
     Y = VSDM.ylm_real.(pf.lm, θ, φ)
     basis_vals = Y' .* rad
 
-    return sum(basis_vals .* pf.fnlm[n_vals.+1, :])
+    return dot(basis_vals, pf.fnlm[n_vals.+1, :])
 end
 
 function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:Union{Wavelet, Tophat}}
@@ -307,8 +318,9 @@ function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:Union{Wavelet, To
 
     fnlm = @view pf.fnlm[n_vals.+1, :]
 
-    res = sum(basis_vals .* Measurements.value.(fnlm))
-    err = sqrt(sum( (basis_vals .* Measurements.uncertainty.(fnlm)).^2 ))
+    res = dot(basis_vals, Measurements.value.(fnlm))
+    err_arr = basis_vals .* Measurements.uncertainty.(fnlm)
+    err = sqrt(dot( err_arr, err_arr ))
 
     return (res ± err)
 end
@@ -322,7 +334,7 @@ end
 "Integral of (d^3 u) f^(u) for a ProjectedF is equal to 
 sum_{nlm} f_{nlm}^2 * umax^3"
 function norm_energy(pf::ProjectedF{Float64,T}) where T<:RadialBasis
-    sum(pf.fnlm .^ 2) * pf.radial_basis.umax^3
+    dot(pf.fnlm, pf.fnlm) * pf.radial_basis.umax^3
 end
 
 "If called with a ProjectedF{Measurement,B} will properly account for the
@@ -331,15 +343,16 @@ function norm_energy(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
     vals = Measurements.value.(pf.fnlm)
     errs = Measurements.uncertainty.(pf.fnlm)
 
-    res = sum(vals .^ 2)
+    res = dot(vals,vals)
     err_arr = @. abs(2*vals*errs)
-    res_err = sqrt(sum(err_arr.^2))
+    res_err = sqrt(dot(err_arr, err_arr))
 
     return (res ± res_err) * pf.radial_basis.umax^3
 end
 
 function norm_energy(fc::FCoeffs{Float64,T}) where T<:RadialBasis
-    sum(collect(values(fc.fnlm)).^2) * fc.radial_basis.umax^3
+    ff = collect(values(fc.fnlm))
+    dot(ff,ff) * fc.radial_basis.umax^3
 end
 
 function norm_energy(fc::FCoeffs{A,B}) where {A<:Measurement, B<:RadialBasis}
@@ -347,9 +360,9 @@ function norm_energy(fc::FCoeffs{A,B}) where {A<:Measurement, B<:RadialBasis}
     vals = Measurements.value.(fnlm)
     errs = Measurements.uncertainty.(fnlm)
 
-    res = sum(vals .^ 2)
+    res = dot(vals, vals)
     err_arr = @. abs(2*vals*errs)
-    res_err = sqrt(sum(err_arr.^2))
+    res_err = sqrt(dot(err_arr, err_arr))
 
     return (res ± res_err) * fc.radial_basis.umax^3
 end
