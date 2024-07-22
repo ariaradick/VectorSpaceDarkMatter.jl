@@ -157,6 +157,7 @@ function sph_to_cart(x_sph)
     return [rx, ry, rz]
 end
 
+"Converts a vector in cartestian coordinates to spherical coordinates."
 function cart_to_sph(uXYZ)
     ux, uy, uz = uXYZ
     u = sqrt(ux^2 + uy^2 + uz^2)
