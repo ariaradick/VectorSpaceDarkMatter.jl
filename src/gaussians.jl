@@ -16,7 +16,7 @@ struct GaussianF
 
     function GaussianF(c, uSph, sigma)
         if uSph[1] < 0
-            throw(DomainError(uSph[1], "u must be not be negative"))
+            throw(DomainError(uSph[1], "u must not be negative"))
         end
         if (uSph[2] > π) || (uSph[2] < 0)
             throw(DomainError(uSph[2], "theta must be between 0 and pi"))
