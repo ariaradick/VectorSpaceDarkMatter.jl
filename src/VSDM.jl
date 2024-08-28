@@ -1,7 +1,7 @@
 module VSDM
 
 using Measurements
-import LinearAlgebra: dot, *, tr
+import LinearAlgebra: dot, *, tr, LowerTriangular
 import DelimitedFiles: readdlm, writedlm
 import SpecialFunctions: gamma, besselix
 import PolyLog: reli2
