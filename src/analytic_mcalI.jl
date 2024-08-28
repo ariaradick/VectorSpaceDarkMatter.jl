@@ -194,3 +194,104 @@ function mI_star(ell, n, v12_star, q12_star)
     end
     return mI_0 + mI_1 + mI_2
 end
+
+function T_matrix_big(ℓmax)
+    res = zeros(BigFloat, (ℓmax+1, ℓmax+1))
+    for ell in 0:ℓmax
+        for k in (ell%2):2:ell
+            res[k+1,ell+1] = exp(log(2.0)*(BigFloat(ell-k)) + loggamma(0.5*(BigFloat(k+ell)+1)) -
+                                 loggamma(BigFloat(k)+1) - loggamma(BigFloat(ell-k)+1)) / 
+                                 gamma(0.5*(BigFloat(k-ell)+1))
+        end
+    end
+    return LowerTriangular(res')
+end
+
+function add_T_vector!(I, a, v1, v2, q1, q2; fdmn=0)
+    for i in eachindex(I)
+        if i==3
+            I[i] += a*(VSDM._b_nk_int(fdmn, 2, q2^2)-
+                     VSDM._b_nk_int(fdmn, 2, q1^2))*log(v2/v1)
+        else
+            k = i-1
+            I[i] += a*(VSDM._b_nk_int(fdmn, k, q2^2)-
+                    VSDM._b_nk_int(fdmn, k, q1^2)) * 
+                    (v2^(2-k) - v1^(2-k)) / (2-k)
+        end
+    end
+end
+
+function add_U_vector!(I, a, v2, q1, q2; fdmn=0)
+    dB2 = VSDM._b_nk_int(fdmn,2,q2^2) - VSDM._b_nk_int(fdmn,2,q1^2)
+    for i in eachindex(I)
+        if i==3
+            I[i] += a*(log(2*v2)*dB2 + VSDM._s_n_int(fdmn,q2^2) - 
+                    VSDM._s_n_int(fdmn,q1^2))
+        else
+            k = i-1
+            I[i] += a*(v2^(2-k) / (2-k) * (VSDM._b_nk_int(fdmn,k,q2^2) - 
+                    VSDM._b_nk_int(fdmn,k,q1^2)) - 2.0^(k-2)*dB2/ (2-k))
+        end
+    end
+end
+
+function not_mI_star!(I, a, n, v12_star, q12_star)
+    v1,v2 = v12_star
+    q1,q2 = q12_star
+    if v1==v2 || q1==q2
+        return 0.0 # No integration volume
+    end
+    if q2 < q1
+        error("q12 must be ordered.")
+    end
+    if v2 < v1
+        error("v12 must be ordered.")
+    end
+    include_R2 = true
+    if v2 < 1.0
+        # v2 is below the velocity threshold. mcaI=0
+        return 0.0
+    end
+    tilq_m,tilq_p = v2 - sqrt(v2^2-1.0), v2 + sqrt(v2^2-1.0)
+    if tilq_m > q2 || tilq_p < q1
+        # in this case v2 < vmin(q) for all q in [q1,q2]
+        return 0.0
+    end
+    # Else: there are some q satisfying vmin(q) < vr2 in this interval.
+    if v1 < 1.0
+        # There is no v1 = vmin(q) solution for any real q
+        include_R2 = false
+    # Else: There are two real solutions to v1 = vmin(q)
+    else
+        q_m,q_p = v1 - sqrt(v1^2-1.0), v1 + sqrt(v1^2-1.0)
+        if q_m > q2 || q_p < q1
+            # in this case v1 < vmin(q) for all q in [q1,q2]
+            include_R2 = false
+        end
+    end
+    if !include_R2
+        q_A = max(q1, tilq_m)
+        q_B = min(q2, tilq_p)
+        add_U_vector!(I, a, v2, q_A, q_B; fdmn=n)
+    else
+        # Else: at least part of the integration volume is set by v1 < v.
+        q_a = max(q1, tilq_m)
+        q_b = max(q1, q_m) # q_m > tilq_m iff v2 > v1
+        q_c = min(q2, q_p) # q_p < tilq_p iff v2 > v1
+        q_d = min(q2, tilq_p)
+
+        if v1>1.0
+            if q_b == q_c
+                error("If q_b==q_c then there should be no R2 region...")
+            end
+        end
+
+        add_T_vector!(I, a, v1, v2, q_b, q_c; fdmn=n)
+        if q_a ≠ q_b
+            add_U_vector!(I, a, v2, q_a, q_b; fdmn=n)
+        end
+        if q_c ≠ q_d
+            add_U_vector!(I, a, v2, q_c, q_d; fdmn=n)
+        end
+    end
+end
