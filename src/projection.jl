@@ -64,8 +64,9 @@ function FCoeffs(pf::ProjectedF)
 end
 
 """
-    ProjectF(f, nl_max, radial_basis::RadialBasis; 
-                    use_measurements=false, rtol=1e-6)
+    ProjectF(f, nl_max::Tuple{Int,Int}, radial_basis::RadialBasis; 
+             dict=false, use_measurements=false, integ_method=:cubature,
+             integ_params=(;))
 
 Evaluates <f | nlm> at each (n,l,m) up to nl_max = (n_max, l_max) and returns
 the result as a `ProjectedF`.
