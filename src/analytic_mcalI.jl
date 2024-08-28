@@ -195,13 +195,12 @@ function mI_star(ell, n, v12_star, q12_star)
     return mI_0 + mI_1 + mI_2
 end
 
-function T_matrix_big(ℓmax)
-    res = zeros(BigFloat, (ℓmax+1, ℓmax+1))
+function T_matrix(ℓmax)
+    res = zeros(Float64, (ℓmax+1, ℓmax+1))
     for ell in 0:ℓmax
         for k in (ell%2):2:ell
-            res[k+1,ell+1] = exp(log(2.0)*(BigFloat(ell-k)) + loggamma(0.5*(BigFloat(k+ell)+1)) -
-                                 loggamma(BigFloat(k)+1) - loggamma(BigFloat(ell-k)+1)) / 
-                                 gamma(0.5*(BigFloat(k-ell)+1))
+            res[k+1,ell+1] = 2^(ell-k)*gamma(0.5*(k+ell+1)) / (gamma(k+1) *
+                             gamma(ell-k+1) * gamma(0.5*(k-ell+1)))
         end
     end
     return LowerTriangular(res')
