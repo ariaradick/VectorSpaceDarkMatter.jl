@@ -12,7 +12,7 @@ using Quaternionic
 using SphericalFunctions
 
 export Wavelet, Tophat, f_uSph, GaussianF, norm_energy, ProjectF,
-       ProjectedF, FCoeffs, update!, writeFnlm, readFnlm
+       ProjectedF, FCoeffs, update!, writeFnlm, readFnlm, rate
 
 include("units.jl")
 include("utils.jl")
