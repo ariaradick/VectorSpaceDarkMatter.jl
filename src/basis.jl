@@ -72,7 +72,7 @@ abstract type RadialBasis end
 """
     Wavelet(umax)
 
-Spherical Haar wavelets. Contains the maximum value of u = |\\vec{u}| that the 
+Spherical Haar wavelets. Contains the maximum value of u = \$|\\vec{u}|\$ that the 
 basis of will be evaluated over.
 """
 struct Wavelet <: RadialBasis
