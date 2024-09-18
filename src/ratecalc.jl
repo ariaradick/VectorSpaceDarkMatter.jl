@@ -101,7 +101,7 @@ function rate(R::T, model::ModelDMSM, pfv::ProjectedF,
     qmax = pfq.radial_basis.umax
     
     G = G_matrices(R, ℓmax)
-    mcI = I_lvq((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
+    mcI = I_lvq_vec((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
     mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
            use_measurements=use_measurements) for ell in 0:ℓmax]))
 
@@ -110,14 +110,14 @@ end
 
 "If you supply a vector of rotations, will properly (quickly) calculate the
 rate for each."
-function rate(R::Vector{T}, model::ModelDMSM, pfv::ProjectedF, 
+function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF, 
               pfq::ProjectedF; ell_max=nothing, use_measurements=false
               ) where T<:Union{Quaternion,Rotor}
     ℓmax = min(maximum([lm[1] for lm in pfv.lm]),
                maximum([lm[1] for lm in pfq.lm]))
-   if !(isnothing(ell_max))
-       ℓmax = min(ell_max, ℓmax)
-   end
+    if !(isnothing(ell_max))
+        ℓmax = min(ell_max, ℓmax)
+    end
     nv_max = size(pfv.fnlm)[1]-1
     nq_max = size(pfq.fnlm)[1]-1
 
@@ -126,11 +126,11 @@ function rate(R::Vector{T}, model::ModelDMSM, pfv::ProjectedF,
 
     D = D_prep(ℓmax)
     G = G_matrices(one(RotorF64), ℓmax)
-    mcI = I_lvq((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
+    mcI = I_lvq_vec((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
     mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
            use_measurements=use_measurements) for ell in 0:ℓmax]))
 
-    res = zeros(Float64, length(R))
+    res = zeros(Float64, size(R))
     for i in eachindex(R)
         D_matrices!(D, R[i])
         G_matrices!(G, D)
