@@ -33,15 +33,13 @@ Normalized by `int(x^2 dx * value^2, {x, x1, x2}) = 1`.
 tophat_value(x1, x2; dim=3) = sqrt(dim / (x2^dim - x1^dim))
 
 """
-    f_uSph(f::Function; umax=1.0, z_even=false, phi_even=false, 
+    f_uSph(f::Function; z_even=false, phi_even=false, 
         phi_cyclic=1, phi_symmetric=false)
 
 Struct that adds decorations to a function f(u, θ, φ) that tell
 getFnlm various properties about the function that speed up
 integration.
 
-umax : maximum value of u for which the function is defined, used
-       to scale the function to the range of the radial basis fns
 z_even: (boolean) if f_uSph(x,y,z) = f_uSph(x,y,-z)
             implies <lm|f> = 0 if (l+m) is odd
 phi_even: (boolean) if f_uSph(u,theta,phi) = f_uSph(u,theta,-phi)
