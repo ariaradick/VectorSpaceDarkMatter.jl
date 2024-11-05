@@ -108,6 +108,13 @@ function rate(R::T, model::ModelDMSM, pfv::ProjectedF,
     return dot(mcK, G)*vmax^5/qmax
 end
 
+function rate(model::ModelDMSM, pfv::ProjectedF, 
+    pfq::ProjectedF; ell_max=nothing, use_measurements=false)
+    
+    rate(one(RotorF64), model, pfv, pfq; ell_max=ell_max,
+         use_measurements=use_measurements)
+end
+
 "If you supply a vector of rotations, will properly (quickly) calculate the
 rate for each."
 function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF, 
