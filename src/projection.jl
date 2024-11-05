@@ -430,7 +430,7 @@ function writeFnlm(outfile, pf::ProjectedF)
     return
 end
 
-function readFnlm(infile, radial_basis::RadialBasis; dict=true, use_err=true)
+function readFnlm(infile, radial_basis::RadialBasis; dict=false, use_err=true)
     input = readdlm(infile, ','; comments=true)
     nrow, ncol = size(input)
     if ncol == 4 || !use_err
@@ -449,7 +449,7 @@ function readFnlm(infile, radial_basis::RadialBasis; dict=true, use_err=true)
     end
 end
 
-function readFnlm(infile; dict=true, use_err=true)
+function readFnlm(infile; dict=false, use_err=true)
     B = Dict{String,String}()
     open(infile) do io
         for l in eachline(io)
