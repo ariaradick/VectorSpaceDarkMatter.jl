@@ -1,4 +1,4 @@
-module VSDM
+module VectorSpaceDM
 
 using Measurements
 import LinearAlgebra: dot, *, tr, LowerTriangular
