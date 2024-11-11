@@ -209,27 +209,27 @@ end
 function add_T_vector!(I, a, v1, v2, q1, q2; fdmn=0)
     for i in eachindex(I)
         if i==3
-            I[i] += a*(VSDM._b_nk_int(fdmn, 2, q2^2)-
-                     VSDM._b_nk_int(fdmn, 2, q1^2))*log(v2/v1)
+            I[i] += a*(_b_nk_int(fdmn, 2, q2^2)-
+                     _b_nk_int(fdmn, 2, q1^2))*log(v2/v1)
         else
             k = i-1
-            I[i] += a*(VSDM._b_nk_int(fdmn, k, q2^2)-
-                    VSDM._b_nk_int(fdmn, k, q1^2)) * 
+            I[i] += a*(_b_nk_int(fdmn, k, q2^2)-
+                    _b_nk_int(fdmn, k, q1^2)) * 
                     (v2^(2-k) - v1^(2-k)) / (2-k)
         end
     end
 end
 
 function add_U_vector!(I, a, v2, q1, q2; fdmn=0)
-    dB2 = VSDM._b_nk_int(fdmn,2,q2^2) - VSDM._b_nk_int(fdmn,2,q1^2)
+    dB2 = _b_nk_int(fdmn,2,q2^2) - _b_nk_int(fdmn,2,q1^2)
     for i in eachindex(I)
         if i==3
-            I[i] += a*(log(2*v2)*dB2 + VSDM._s_n_int(fdmn,q2^2) - 
-                    VSDM._s_n_int(fdmn,q1^2))
+            I[i] += a*(log(2*v2)*dB2 + _s_n_int(fdmn,q2^2) - 
+                    _s_n_int(fdmn,q1^2))
         else
             k = i-1
-            I[i] += a*(v2^(2-k) / (2-k) * (VSDM._b_nk_int(fdmn,k,q2^2) - 
-                    VSDM._b_nk_int(fdmn,k,q1^2)) - 2.0^(k-2)*dB2/ (2-k))
+            I[i] += a*(v2^(2-k) / (2-k) * (_b_nk_int(fdmn,k,q2^2) - 
+                    _b_nk_int(fdmn,k,q1^2)) - 2.0^(k-2)*dB2/ (2-k))
         end
     end
 end
