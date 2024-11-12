@@ -1,6 +1,6 @@
-using VSDM
+using VectorSpaceDM
 # using Test
 
-# @testset "VSDM.jl" begin
+# @testset "VectorSpaceDM.jl" begin
 #     # Write your tests here.
 # end
