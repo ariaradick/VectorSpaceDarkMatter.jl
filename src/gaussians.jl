@@ -104,10 +104,10 @@ function getFnlm(g::Vector{GaussianF}, nlm, radial_basis::RadialBasis;
 end
 
 "Integral of (d^3 u) g^2(u)"
-norm_energy(g::GaussianF) = g.c/(g.sigma * sqrt(2*π))^3
+f2_norm(g::GaussianF) = g.c^2/(g.sigma * sqrt(2*π))^3
 
 "Integral of (d^3 u) (sum_i g_i(u))^2"
-function norm_energy(g::Vector{GaussianF})
+function f2_norm(g::Vector{GaussianF})
     res = 0.0
 
     for gi in g
