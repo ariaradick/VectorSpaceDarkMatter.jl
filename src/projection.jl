@@ -328,19 +328,19 @@ end
 
 "Integral of (d^3 u) f^2(u) over the range a = [u_min, theta_min, phi_min]
 to b = [u_max, theta_max, phi_max]."
-function norm_energy(f::Function, a, b)
+function f2_norm(f::Function, a, b)
     return NIntegrate(x -> dV_sph(x)*f(x)^2, a, b, :cubature)
 end
 
 "Integral of (d^3 u) f^(u) for a ProjectedF is equal to 
 sum_{nlm} f_{nlm}^2 * umax^3"
-function norm_energy(pf::ProjectedF{Float64,T}) where T<:RadialBasis
+function f2_norm(pf::ProjectedF{Float64,T}) where T<:RadialBasis
     dot(pf.fnlm, pf.fnlm) * pf.radial_basis.umax^3
 end
 
 "If called with a ProjectedF{Measurement,B} will properly account for the
 integration uncertainties."
-function norm_energy(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
+function f2_norm(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
     vals = Measurements.value.(pf.fnlm)
     errs = Measurements.uncertainty.(pf.fnlm)
 
@@ -351,12 +351,12 @@ function norm_energy(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
     return (res ± res_err) * pf.radial_basis.umax^3
 end
 
-function norm_energy(fc::FCoeffs{Float64,T}) where T<:RadialBasis
+function f2_norm(fc::FCoeffs{Float64,T}) where T<:RadialBasis
     ff = collect(values(fc.fnlm))
     dot(ff,ff) * fc.radial_basis.umax^3
 end
 
-function norm_energy(fc::FCoeffs{A,B}) where {A<:Measurement, B<:RadialBasis}
+function f2_norm(fc::FCoeffs{A,B}) where {A<:Measurement, B<:RadialBasis}
     fnlm = collect(values(fc.fnlm))
     vals = Measurements.value.(fnlm)
     errs = Measurements.uncertainty.(fnlm)
