@@ -1,4 +1,4 @@
-module VectorSpaceDM
+module VectorSpaceDarkMatter
 
 using Measurements
 import LinearAlgebra: dot, *, tr, LowerTriangular

@@ -1,8 +1,8 @@
 using Documenter
-using VSDM
+using VectorSpaceDarkMatter
 
 makedocs(
-    sitename = "VSDM",
+    sitename = "VectorSpaceDarkMatter",
     format = Documenter.HTML()#,
     #modules = [VSDM]
 )

@@ -301,8 +301,8 @@ function (pf::ProjectedF{Float64,T})(uvec) where T<:Union{Wavelet, Tophat}
     x = u/pf.radial_basis.umax
     n_vals = _get_nvals(x, pf)
 
-    rad = VSDM.radRn.(n_vals, 0, u, (pf.radial_basis,))
-    Y = VSDM.ylm_real.(pf.lm, θ, φ)
+    rad = radRn.(n_vals, 0, u, (pf.radial_basis,))
+    Y = ylm_real.(pf.lm, θ, φ)
     basis_vals = Y' .* rad
 
     return dot(basis_vals, pf.fnlm[n_vals.+1, :])
@@ -313,8 +313,8 @@ function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:Union{Wavelet, To
     x = u/pf.radial_basis.umax
     n_vals = _get_nvals(x, pf)
 
-    rad = VSDM.radRn.(n_vals, 0, u, (pf.radial_basis,))
-    Y = VSDM.ylm_real.(pf.lm, θ, φ)
+    rad = radRn.(n_vals, 0, u, (pf.radial_basis,))
+    Y = ylm_real.(pf.lm, θ, φ)
     basis_vals = Y' .* rad
 
     fnlm = @view pf.fnlm[n_vals.+1, :]
