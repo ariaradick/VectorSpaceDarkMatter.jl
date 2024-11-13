@@ -11,7 +11,7 @@ using MCIntegration
 using Quaternionic
 using SphericalFunctions
 
-export Wavelet, Tophat, f_uSph, GaussianF, norm_energy, ProjectF,
+export Wavelet, Tophat, f_uSph, GaussianF, f2_energy, ProjectF,
        ProjectedF, FCoeffs, update!, writeFnlm, readFnlm, rate,
        ModelDMSM
 
