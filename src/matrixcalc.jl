@@ -3,7 +3,7 @@
 
 Stores the relevant model parameters.
 
-`fdm_n` : The power of the dark matter form factor ``(\\alpha m_e / q)^{\\texttt{fdm_n}}``
+`fdm_n` : The power ``n`` of the dark matter form factor ``(\\alpha m_e / q)^{n}``
 
 `mX` : dark matter mass in eV
 
