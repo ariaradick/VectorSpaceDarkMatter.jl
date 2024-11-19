@@ -1,6 +1,8 @@
-# VSDM.jl
+# VectorSpaceDarkMatter.jl
 
 Vector Spaces for Dark Matter. This is the Julia implementation  of the wavelet-harmonic integration method, designed for the efficient calculation of dark matter direct detection scattering rates in anisotropic detectors, and for arbitrary dark matter velocity distributions. See the associated papers [[arXiv:2310.01483]](https://arxiv.org/abs/2310.01483) and [[arXiv:2310.01480]](https://arxiv.org/abs/2310.01480) for an in-depth discussion of the methods used in this package.
+
+See the example notebook `examples/VSDM_Example.ipynb` for a walkthrough using this package on some simple functions.
 
 ## Direct Detection Rates
 
@@ -46,7 +48,7 @@ and is analytically calculable for the tophat and Haar wavelet bases. Finally, w
 R = \frac{k_0}{T_\textrm{exp}} \sum_{\ell=0}^{\infty} \sum_{m,m'=-\ell}^\ell \sum_{n,n'=0}^{\infty} \langle v_{\textrm{max}}^3 g_\chi | n \ell m \rangle \mathcal{I}_{n,n'}^\ell G^\ell_{m,m'}(\mathcal{R}) \langle n' \ell m' | f_s^2 \rangle
 ```
 
-where $G$ is like the Wigner $D$-matrix, but for real spherical harmonics
+where $G$ is analogous to the Wigner $D$-matrix, but for real spherical harmonics
 
 ```math
 G_{m',m}^\ell(\mathcal{R}) \equiv \langle \ell m' | \mathcal{R} | \ell m \rangle
@@ -57,7 +59,7 @@ G_{m',m}^\ell(\mathcal{R}) \equiv \langle \ell m' | \mathcal{R} | \ell m \rangle
 The first step in using this package to do a calculation is to project your velocity distribution $g_\chi(\textbf{v})$ and momentum form factor $f_s^2(\textbf{q})$ onto the vector space. First, decide your maximum $v$ and $q$ values. Make sure your $v$ and $q$ are in natural units. Then we can use the function `ProjectF`
 
 ```@meta
-CurrentModule = VSDM
+CurrentModule = VectorSpaceDarkMatter
 using Quaternionic
 ```
 

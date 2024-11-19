@@ -36,16 +36,18 @@ tophat_value(x1, x2; dim=3) = sqrt(dim / (x2^dim - x1^dim))
     f_uSph(f::Function; z_even=false, phi_even=false, 
         phi_cyclic=1, phi_symmetric=false)
 
-Struct that adds decorations to a function f(u, θ, φ) that tell
-getFnlm various properties about the function that speed up
-integration.
+Struct that adds decorations to a function ``f(u, \\theta, \\phi)`` that tell
+`ProjectF` various properties about the function that speed up integration.
 
-z_even: (boolean) if f_uSph(x,y,z) = f_uSph(x,y,-z)
-            implies <lm|f> = 0 if (l+m) is odd
-phi_even: (boolean) if f_uSph(u,theta,phi) = f_uSph(u,theta,-phi)
-            implies <lm|f> = 0 if m is odd
-phi_cyclic: (integer) if f_uSph(u,theta,phi) = f_uSph(u,theta,phi + 2*pi/n)
-phi_symmetric: (boolean) if f_uSph(u,theta) independent of phi
+`z_even` : (boolean) if `f_uSph(x,y,z)` = `f_uSph(x,y,-z)`. Implies 
+           ``\\langle \\ell m | f \\rangle = 0 `` if ``(\\ell+m)`` is odd
+
+`phi_even` : (boolean) if `f_uSph(u,theta,phi)` = `f_uSph(u,theta,-phi)`
+             Implies ``\\langle \\ell m | f \\rangle`` = 0 if ``m`` is odd
+
+`phi_cyclic` : (integer) if `f_uSph(u,theta,phi)` = `f_uSph(u,theta,phi + 2*pi/n)`
+
+`phi_symmetric` : (boolean) if `f_uSph(u,theta)` is independent of `phi`
 """
 struct f_uSph
     f::Function
@@ -70,8 +72,8 @@ abstract type RadialBasis end
 """
     Wavelet(umax)
 
-Spherical Haar wavelets. Contains the maximum value of u = \$|\\vec{u}|\$ that the 
-basis of will be evaluated over.
+Spherical Haar wavelets. Contains the maximum value of u = ``|\\vec{u}|`` that the 
+basis of will be evaluated over. If `umax` is omitted, it will be set to 1.0
 """
 struct Wavelet <: RadialBasis
     umax::Float64
@@ -80,10 +82,11 @@ end
 Wavelet() = Wavelet(1.0)
 
 """
-    Tophat(xi, [umax])
+    Tophat(xi[, umax])
 
-Tophat basis functions between each point in xi. The range will be scaled by
-umax, the maximum value of u = |\\vec{u}|.
+Tophat basis functions between each point in `xi`. The range will be scaled by
+`umax`, the maximum value of u = ``|\\vec{u}|``. If `umax` is omitted, it will
+be set to 1.0
 """
 struct Tophat <: RadialBasis
     xi::Vector{Float64}

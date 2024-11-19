@@ -1,12 +1,12 @@
 """
     ProjectedF{A, B}(fnlm::Matrix{A}, radial_basis::B)
 
-Stores the <f | nlm> coefficients and the radial basis that was used to
-calculate them. It is assumed that spherical harmonics were used for the
-angular parts. `A` is the element type of the matrix that stores `fnlm`
-coefficients (should be either `Float64` or `Measurement`). `B` is the type 
-of radial basis. `lm` stores a vector of `(l,m)` for the `fnlm` matrix:
-`fnlm` is indexed as `[n+1,i]` corresponding to `(l,m) = lm[i]`
+Stores the ``\\langle f | n \\ell m \\rangle`` coefficients and the radial basis
+that was used to calculate them. It is assumed that spherical harmonics were 
+used for the angular parts. `A` is the element type of the matrix that stores 
+`fnlm` coefficients (should be either `Float64` or `Measurement`). `B` is the 
+type of radial basis. `lm` stores a vector of `(ell,m)` for the `fnlm` matrix:
+`fnlm` is indexed as `[n+1,i]` corresponding to `(ell,m) = lm[i]`
 """
 struct ProjectedF{A, B<:RadialBasis}
     fnlm::Matrix{A}
@@ -18,9 +18,9 @@ end
     FCoeffs{A, B}(fnlm::Dict{Tuple{Int64,Int64,Int64}, A},
         radial_basis::B)
 
-Stores the <f | nlm> coefficients as a dictionary with (n,l,m) => f_nlm
-and the radial basis that was used to calculate them. It is assumed
-that spherical harmonics were used for the angular parts. `A` is 
+Stores the ``\\langle f | n \\ell m \\rangle`` coefficients as a dictionary with
+`(n,ell,m) => f_nlm` and the radial basis that was used to calculate them. It is
+assumed that spherical harmonics were used for the angular parts. `A` is 
 the element type of the dict that stores `fnlm` coefficients (should 
 be either `Float64` or `Measurement`). `B` is the type of radial basis.
 """
@@ -68,8 +68,8 @@ end
              dict=false, use_measurements=false, integ_method=:cubature,
              integ_params=(;))
 
-Evaluates <f | nlm> at each (n,l,m) up to nl_max = (n_max, l_max) and returns
-the result as a `ProjectedF`.
+Evaluates ``\\langle f | n \\ell m \\rangle`` at each ``(n,\\ell,m)`` up to 
+`nl_max = (n_max, l_max)` and returns the result as a `ProjectedF`.
 
 `f` : Can be a `Function`, `f_uSph`, `GaussianF`, or `Vector{GaussianF}`. 
       `f_uSph` is preferred if your function has any symmetries, and is not 
@@ -216,9 +216,9 @@ end
 """
     update!(fc::FCoeffs, f, nlm::Tuple{Int,Int,Int}; kwargs...)
 
-Evaluates a particular (n,l,m) coefficient for the function f and the radial
-basis fc.radial_basis, and stores the result in fc.fnlm[(n,l,m)]. Will
-overwrite existing data. kwargs correspond to the kwargs for `getFnlm`
+Evaluates a particular ``(n,\\ell,m)`` coefficient for the function `f` and the 
+radial basis `fc.radial_basis` and stores the result in `fc.fnlm[(n,ell,m)]`. 
+Will overwrite existing data. kwargs correspond to the kwargs for `getFnlm`
 """
 function update!(fc::FCoeffs, f, nlm::Tuple{Int,Int,Int}; kwargs...)
     fnlm = getFnlm(f, nlm, fc.radial_basis; kwargs...)
@@ -244,7 +244,7 @@ function update!(fc::FCoeffs, g::Vector{GaussianF}, nlm::Tuple{Int,Int,Int};
     end
 end
 
-"If called with a vector of nlm tuples, runs update! for each (n,l,m)"
+"If called with a vector of nlm tuples, runs update! for each (n,ell,m)"
 function update!(fc::FCoeffs, f, nlm::Vector{Tuple{Int,Int,Int}}; kwargs...)
     update!.((fc,), (f,), nlm; kwargs...)
 end
@@ -326,20 +326,26 @@ function (pf::ProjectedF{A,B})(uvec) where {A<:Measurement, B<:Union{Wavelet, To
     return (res ± err)
 end
 
-"Integral of (d^3 u) f^2(u) over the range a = [u_min, theta_min, phi_min]
-to b = [u_max, theta_max, phi_max]."
+"""
+    f2_norm(f::Function, a, b)
+
+Integral `` \\int d^3 u \\: f^2(u) `` over the range `a = [u_min, theta_min, phi_min]`
+to `b = [u_max, theta_max, phi_max]`.
+"""
 function f2_norm(f::Function, a, b)
     return NIntegrate(x -> dV_sph(x)*f(x)^2, a, b, :cubature)
 end
 
-"Integral of (d^3 u) f^(u) for a ProjectedF is equal to 
-sum_{nlm} f_{nlm}^2 * umax^3"
+"""
+    f2_norm(pf::T) where T<:Union{ProjectedF, FCoeffs}
+
+``\\int d^3 u \\: f^2(u)`` for a ProjectedF or FCoeffs is equal to 
+``u_{\\textrm{max}}^3 \\sum_{n \\ell m} f_{n \\ell m}^2``
+"""
 function f2_norm(pf::ProjectedF{Float64,T}) where T<:RadialBasis
     dot(pf.fnlm, pf.fnlm) * pf.radial_basis.umax^3
 end
 
-"If called with a ProjectedF{Measurement,B} will properly account for the
-integration uncertainties."
 function f2_norm(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
     vals = Measurements.value.(pf.fnlm)
     errs = Measurements.uncertainty.(pf.fnlm)
@@ -368,6 +374,12 @@ function f2_norm(fc::FCoeffs{A,B}) where {A<:Measurement, B<:RadialBasis}
     return (res ± res_err) * fc.radial_basis.umax^3
 end
 
+"""
+    writeFnlm(outfile, pf)
+
+Writes the coefficients from `pf` (either a `ProjectedF` or an `FCoeffs`)
+to file `outfile`.
+"""
 function writeFnlm(outfile, fc::FCoeffs)
     vtype = valtype(fc.fnlm)
 
@@ -430,6 +442,16 @@ function writeFnlm(outfile, pf::ProjectedF)
     return
 end
 
+"""
+    readFnlm(infile[, radial_basis::RadialBasis]; dict=false, use_err=true)
+
+Reads coefficients from `infile`. Can optionally manually define the basis
+via `radial_basis` argument. Optional arguments:
+
+`dict` : If `true`, will return an `FCoeffs`. If false, returns `ProjectedF`.
+
+`use_err` : Whether or not to load the uncertainties on the `fnlm` values.
+"""
 function readFnlm(infile, radial_basis::RadialBasis; dict=false, use_err=true)
     input = readdlm(infile, ','; comments=true)
     nrow, ncol = size(input)

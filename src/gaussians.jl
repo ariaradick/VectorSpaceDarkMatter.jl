@@ -2,9 +2,9 @@
     GaussianF(c::Float64, uSph::Vector{Float64}, sigma::Float64)
 
 Contains parameters for a gaussian function where `uSph` is the spherical vector
-indicating the center of the gaussian, uSph = (u, theta, phi). `sigma` is
-the dispersion (equal to sqrt(2)*sigma in a "normal" gaussian). `c` is the
-overall amplitude. `u` and `sigma` should have the same units.
+indicating the center of the gaussian, `uSph = (u, theta, phi)`. `sigma` is
+the dispersion (equal to ``\\sqrt{2} \\sigma`` in a "normal" gaussian). 
+`c` is the overall amplitude. `u` and `sigma` should have the same units.
 
 An instance `g` of `GaussianF` is callable by `g(uvec)`, which will evaluate
 the gaussian at `uvec = [u, theta, phi]`.
@@ -103,10 +103,18 @@ function getFnlm(g::Vector{GaussianF}, nlm, radial_basis::RadialBasis;
     return sum(getFnlm.(g, (nlm,), (radial_basis,); integ_params=integ_params))
 end
 
-"Integral of (d^3 u) g^2(u)"
+"""
+    f2_norm(g::GaussianF)
+
+L2 norm of a single Gaussian ``\\int d^3 u \\: g^2(u)``
+"""
 f2_norm(g::GaussianF) = g.c^2/(g.sigma * sqrt(2*π))^3
 
-"Integral of (d^3 u) (sum_i g_i(u))^2"
+"""
+    f2_norm(g::Vector{GaussianF})
+
+L2 norm of a set of Gaussians ``\\int d^3 u \\: (\\sum_i g_i(u))^2``
+"""
 function f2_norm(g::Vector{GaussianF})
     res = 0.0
 

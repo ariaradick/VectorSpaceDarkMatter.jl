@@ -3,10 +3,13 @@
 
 Stores the relevant model parameters.
 
-fdm_n : The power of the dark matter form factor (α m_e / q)^fdm_n
-mX : dark matter mass in eV
-mSM : mass of target particle in eV
-deltaE : discrete final state energy in eV
+`fdm_n` : The power of the dark matter form factor ``(\\alpha m_e / q)^{\\texttt{fdm_n}}``
+
+`mX` : dark matter mass in eV
+
+`mSM` : mass of target particle in eV
+
+`deltaE` : discrete final state energy in eV
 """
 struct ModelDMSM
     fdm_n::Int
