@@ -2,7 +2,7 @@
 
 Vector Spaces for Dark Matter. This is the Julia implementation  of the wavelet-harmonic integration method, designed for the efficient calculation of dark matter direct detection scattering rates in anisotropic detectors, and for arbitrary dark matter velocity distributions. See the associated papers [[arXiv:2310.01483]](https://arxiv.org/abs/2310.01483) and [[arXiv:2310.01480]](https://arxiv.org/abs/2310.01480) for an in-depth discussion of the methods used in this package.
 
-See the example notebook `examples/VSDM_Example.ipynb` for a walkthrough using this package on some simple functions.
+See [the example notebook](https://github.com/ariaradick/VectorSpaceDarkMatter.jl/blob/main/examples/VSDM_Example.ipynb) for a walkthrough using this package on some simple functions.
 
 ## Direct Detection Rates
 
