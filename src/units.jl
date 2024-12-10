@@ -11,3 +11,4 @@ const qBohr = mElec*alphaE * g_c # in units of [energy]/[velocity]
 const _Q0_FDM_QBOHR = 1. # sets the ratio q0_fdm/qBohr.
 const q0_fdm = _Q0_FDM_QBOHR*qBohr # the reference momentum for F_DM form factor
 const SECONDS_PER_YEAR = 3.1536e7 # for future reference in rate normalization
+const ccms = 2.99792e10 # speed of light in cm/s
