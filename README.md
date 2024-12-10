@@ -7,4 +7,4 @@
 
 VectorSpaceDarkMatter.jl is the Julia implementation of the wavelet-harmonic integration method, designed for the efficient calculation of dark matter direct detection scattering rates in anisotropic detectors, and for arbitrary dark matter velocity distributions.
 
-This package is a work-in-progress and is based on [the vsdm Python package](https://github.com/blillard/vsdm) in addition to the arXiv papers listed above. The package has been tested for accuracy, but may still contain issues.
+This package is a work-in-progress and is based on [the vsdm Python package](https://github.com/blillard/vsdm) in addition to the arXiv papers listed above.

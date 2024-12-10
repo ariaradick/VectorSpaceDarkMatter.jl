@@ -54,6 +54,18 @@ where $G$ is analogous to the Wigner $D$-matrix, but for real spherical harmonic
 G_{m',m}^\ell(\mathcal{R}) \equiv \langle \ell m' | \mathcal{R} | \ell m \rangle
 ```
 
+We can also define a set of partial rate matrices (one for each $\ell$), $K^{(\ell)}$, which can be calculated ahead of time for each set of parameters
+
+```math
+K^{(\ell)}_{m,m'} \equiv \sum_{n=0}^{\infty} \sum_{n'=0}^{\infty} \langle v_{\textrm{max}}^3 g_\chi | n \ell m \rangle \mathcal{I}_{n,n'}^{(\ell)} (\mathcal{R}) \langle n' \ell m' | f_s^2 \rangle
+```
+
+Then the rate simply becomes
+
+```math
+R(\mathcal{R}) = \frac{k_0}{T_{\textrm{exp}}} \sum_\ell \sum_{m,m'} K^{\ell}_{m,m'} G^\ell_{m,m'}(\mathcal{R})
+```
+
 ## Projecting $g_\chi$ and $f_s^2$
 
 The first step in using this package to do a calculation is to project your velocity distribution $g_\chi(\textbf{v})$ and momentum form factor $f_s^2(\textbf{q})$ onto the vector space. First, decide your maximum $v$ and $q$ values. Make sure your $v$ and $q$ are in natural units. Then we can use the function `ProjectF`
@@ -112,14 +124,20 @@ We also need to define the model, including the dark matter mass $m_\chi$, the d
 dmsm_model = ModelDMSM(fdm_n, mX, mSM, deltaE)
 ```
 
-Once you have a quaternion or rotor defining your desired rotation and have defined your model you can easily calculate the rate by
+Finally, there is an overall prefactor for the rate, called $k_0$, and we can store the relevant parameters for that in an `ExposureFactor` object,
 
 ```
-R = rate(q, dmsm_model, gx_nlm, fs2_nlm)
+exp_factor = ExposureFactor(N_T, sigma0, rhoX)
+```
+
+Once you have a quaternion or rotor defining your desired rotation and have defined your model and prefactor you can easily calculate the rate by
+
+```
+R = rate(q, exp_factor, dmsm_model, gx_nlm, fs2_nlm)
 ```
 
 It's very quick to implement more rotations, so you can also pass a vector of quaternions (or rotors) to `rate`
 
 ```
-R = rate(Q, dmsm_model, gx_nlm, fs2_nlm)
+R = rate(Q, exp_factor, dmsm_model, gx_nlm, fs2_nlm)
 ```
