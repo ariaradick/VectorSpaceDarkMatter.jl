@@ -1,3 +1,36 @@
+
+"""
+    ExposureFactor(N_T, sigma0, rhoX)
+
+Necessary constants for calculating ``k_0``, the overall prefactor for the rate.
+
+`N_T` : number of individual targets, ``N_T = M_T / m_{\\textrm{cell}}`` 
+where ``M_T`` is the mass of the target, and ``m_{\\textrm{cell}}`` is the mass
+of the unit cell.
+
+`sigma0` : Reference cross-section in cm^2, ``\\bar{\\sigma}_0``
+
+`rhoX` : local DM density in GeV/cm^3, ``\\rho_\\chi``
+"""
+struct ExposureFactor
+    N_T::Float64
+    sigma0::Float64
+    rhoX::Float64
+    total::Float64
+
+    function ExposureFactor(N_T, sigma0, rhoX)
+        tot = N_T*ccms*1e9*sigma0*rhoX
+        return new(N_T, sigma0, rhoX, tot)
+    end
+end
+
+struct PartialRate
+    K::Vector{Float64}
+    model::ModelDMSM
+    v_basis::RadialBasis
+    q_basis::RadialBasis
+end
+
 function _get_im_vals(pf::ProjectedF, ell)
     i_vals = findall(x -> x[1] == ell, pf.lm)
     Nj = length(i_vals)
@@ -71,6 +104,33 @@ function get_mcalK_ell(pfv::ProjectedF, pfq::ProjectedF, ell, I_ell;
     end
 end
 
+function get_ℓmax(args...; ell_max=nothing)
+    ℓmax = minimum([maximum([lm[1] for lm in pf.lm]) for pf in args])
+    if !(isnothing(ell_max))
+        ℓmax = min(ell_max, ℓmax)
+    end
+    return ℓmax
+end
+
+function _pr(ellmax, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
+    use_measurements=true)
+
+    nv_max = size(pfv.fnlm)[1]-1
+    nq_max = size(pfq.fnlm)[1]-1
+
+    mcI = I_lvq_vec((ellmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
+    mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
+           use_measurements=use_measurements) for ell in 0:ellmax]))
+    
+    return mcK
+end
+
+function partial_rate(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
+    ell_max=nothing, use_measurements=true)
+    ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
+    return _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
+end
+
 """
     rate(R, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
         ell_max=nothing, use_measurements=false)
@@ -89,22 +149,12 @@ function rate(R::T, model::ModelDMSM, pfv::ProjectedF,
               pfq::ProjectedF; ell_max=nothing, use_measurements=false
               ) where T<:Union{Quaternion,Rotor}
 
-    ℓmax = min(maximum([lm[1] for lm in pfv.lm]),
-               maximum([lm[1] for lm in pfq.lm]))
-    if !(isnothing(ell_max))
-        ℓmax = min(ell_max, ℓmax)
-    end
-        
-    nv_max = size(pfv.fnlm)[1]-1
-    nq_max = size(pfq.fnlm)[1]-1
-
+    ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
     vmax = pfv.radial_basis.umax
     qmax = pfq.radial_basis.umax
     
     G = G_matrices(R, ℓmax)
-    mcI = I_lvq_vec((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
-    mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
-           use_measurements=use_measurements) for ell in 0:ℓmax]))
+    mcK = _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
 
     return dot(mcK, G)*vmax^5/qmax
 end
@@ -119,22 +169,14 @@ end
 function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF, 
               pfq::ProjectedF; ell_max=nothing, use_measurements=false
               ) where T<:Union{Quaternion,Rotor}
-    ℓmax = min(maximum([lm[1] for lm in pfv.lm]),
-               maximum([lm[1] for lm in pfq.lm]))
-    if !(isnothing(ell_max))
-        ℓmax = min(ell_max, ℓmax)
-    end
-    nv_max = size(pfv.fnlm)[1]-1
-    nq_max = size(pfq.fnlm)[1]-1
 
+    ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
     vmax = pfv.radial_basis.umax
     qmax = pfq.radial_basis.umax
 
     D = D_prep(ℓmax)
     G = G_matrices(one(RotorF64), ℓmax)
-    mcI = I_lvq_vec((ℓmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
-    mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
-           use_measurements=use_measurements) for ell in 0:ℓmax]))
+    mcK = _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
 
     res = zeros(Float64, size(R))
     for i in eachindex(R)
@@ -143,4 +185,10 @@ function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF,
         res[i] = dot(mcK,G)
     end
     return res .* vmax^5 ./ qmax
+end
+
+function rate(R, exp::ExposureFactor, model::ModelDMSM, pfv::ProjectedF, 
+              pfq::ProjectedF; ell_max=nothing, use_measurements=false)
+    r = rate(R,model,pfv,pfq;ell_max=ell_max,use_measurements=use_measurements)
+    return @. r*exp.total#*pfv.radial_basis.umax^2/pfq.radial_basis.umax
 end
