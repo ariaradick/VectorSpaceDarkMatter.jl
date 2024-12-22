@@ -24,8 +24,15 @@ struct ExposureFactor
     end
 end
 
-struct PartialRate
-    K::Vector{Float64}
+"""
+    PartialRate(K::Vector{A}, model::ModelDMSM, v_basis::RadialBasis,
+                q_basis::RadialBasis)
+
+Stores the flattened partial rate matrix along with the relevant model and
+basis parameters.
+"""
+struct PartialRate{A}
+    K::Vector{A}
     model::ModelDMSM
     v_basis::RadialBasis
     q_basis::RadialBasis
@@ -122,13 +129,108 @@ function _pr(ellmax, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
     mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
            use_measurements=use_measurements) for ell in 0:ellmax]))
     
-    return mcK
+    return mcK*pfv.radial_basis.umax^3
 end
 
+"""
+    partial_rate(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
+                 ell_max=nothing, use_measurements=true)
+
+Calculates the partial rate matrix, stored as a flattened vector, for a given
+`model`, velocity distribution (`pfv`), and material form factor (`pfq`).
+
+The maximum ``\\ell`` that is used is the minimum of the specified `ell_max` and
+the maximum ``\\ell`` for each of `pfv` and `pfq`.
+"""
 function partial_rate(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
     ell_max=nothing, use_measurements=true)
     ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
-    return _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
+    mcK = _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
+    return PartialRate(mcK, model, pfv.radial_basis, pfq.radial_basis)
+end
+
+"""
+    writeK(outfile, mcK::PartialRate)
+
+Writes a partial rate matrix ``\\mathcal{K}`` stored in `mcK` to `outfile`.
+"""
+function writeK(outfile, mcK::PartialRate)
+    vtype = typeof(mcK.v_basis)
+    vmax = mcK.v_basis.umax
+    qtype = typeof(mcK.q_basis)
+    qmax = mcK.q_basis.umax
+    model = mcK.model
+
+    open(outfile, "w") do io
+        write(io, "#, v_type: $vtype, vMax: $vmax, q_type: $qtype, qMax: $qmax\n")
+        write(io, "#, fdm_n: $(model.fdm_n), mX: $(model.mX), mSM: $(model.mSM), deltaE: $(model.deltaE)\n")
+        if eltype(mcK.K) == Float64
+            write(io, "#, K\n")
+            writedlm(io, mcK.K, ',')
+        elseif eltype(mcK.K) <: Measurement
+            write(io, "#, K.val, K.err\n")
+            Kvals = Measurements.value.(mcK.K)
+            Kerrs = Measurements.uncertainty.(mcK.K)
+            writedlm(io, hcat(Kvals, Kerrs), ',')
+        end
+    end
+
+    return
+end
+
+function _get_K_info(infile)
+    B = Dict{String,String}()
+    open(infile) do io
+        for l in eachline(io)
+            if l[1] == '#'
+                stuff = split.(split(filter(x -> !isspace(x), l[2:end]), ','), ':')
+                filter!(x -> length(x) == 2, stuff)
+                for s in stuff
+                    B[s[1]] = s[2]
+                end
+            else
+                break
+            end
+        end
+    end
+    return B
+end
+
+"""
+    readK(infile[, v_basis::RadialBasis, q_basis::RadialBasis]; use_err=true)
+
+Reads partial rate matrix from `infile`. Can optionally manually define the 
+bases via `v_basis` and `q_basis` arguments, otherwise will attempt to read
+from the header of the csv file. Note that automatic basis reading only works
+for `Wavelet` bases.
+
+`use_err` : Whether or not to load the uncertainties.
+"""
+function readK(infile, v_basis::RadialBasis, q_basis::RadialBasis; use_err=true)
+    input = readdlm(infile, ','; comments=true)
+    if (size(input)[2] == 1) || !(use_err)
+        Kvec = @view input[:]
+    elseif size(input)[2] == 2
+        Kvals = @view input[:,1]
+        Kerrs = @view input[:,2]
+        Kvec = (Kvals .± Kerrs)
+    end
+
+    B = _get_K_info(infile)
+    model_params = parse.(Float64, [B["fdm_n"], B["mX"], B["mSM"], B["deltaE"]])
+
+    mcK = PartialRate(Kvec, ModelDMSM(model_params...), v_basis, q_basis)
+
+    return mcK
+end
+
+function readK(infile; use_err=true)
+    B = _get_K_info(infile)
+    if (B["v_type"] in ["Wavelet", "wavelet"]) && (B["q_type"] in ["Wavelet", "wavelet"])
+        vbasis = Wavelet(parse(Float64, B["vMax"]))
+        qbasis = Wavelet(parse(Float64, B["qMax"]))
+    end
+    return readK(infile, vbasis, qbasis; use_err=use_err)
 end
 
 """
@@ -156,7 +258,7 @@ function rate(R::T, model::ModelDMSM, pfv::ProjectedF,
     G = G_matrices(R, ℓmax)
     mcK = _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
 
-    return dot(mcK, G)*vmax^5/qmax
+    return dot(mcK, G)*vmax^2/qmax
 end
 
 function rate(model::ModelDMSM, pfv::ProjectedF, 
@@ -184,11 +286,50 @@ function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF,
         G_matrices!(G, D)
         res[i] = dot(mcK,G)
     end
-    return res .* vmax^5 ./ qmax
+    return res .* vmax^2 ./ qmax
 end
 
 function rate(R, exp::ExposureFactor, model::ModelDMSM, pfv::ProjectedF, 
               pfq::ProjectedF; ell_max=nothing, use_measurements=false)
     r = rate(R,model,pfv,pfq;ell_max=ell_max,use_measurements=use_measurements)
-    return @. r*exp.total#*pfv.radial_basis.umax^2/pfq.radial_basis.umax
+    return @. r*exp.total
+end
+
+"""
+    rate(R, mcK::PartialRate)
+
+Calculates the rate for a given partial rate matrix `mcK` and rotation `R`
+given as a quaternion or rotor (to use other rotations, see `Quaternionic.jl`'s
+conversion methods). `R` can also be a vector of quaternions or rotors.
+
+The maximum ``\\ell`` that is used is the minimum of the specified `ell_max` and
+the maximum ``\\ell`` for each of `pfv` and `pfq`.
+
+Measurements are not supported here (yet).
+"""
+function rate(R::T, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
+    vmax = K.v_basis.umax
+    qmax = K.q_basis.umax
+
+    G = G_matrices(R, ℓmax)
+    Kvec = Measurements.value.(mcK.K)
+    return dot(Kvec, G)*vmax^2/qmax
+end
+
+function rate(R::Array{T}, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
+    vmax = K.v_basis.umax
+    qmax = K.q_basis.umax
+
+    D = D_prep(ℓmax)
+    G = G_matrices(one(RotorF64), ℓmax)
+
+    Kvec = Measurements.value.(mcK.K)
+
+    res = zeros(Float64, size(R))
+    for i in eachindex(R)
+        D_matrices!(D, R[i])
+        G_matrices!(G, D)
+        res[i] = dot(Kvec,G)
+    end
+    return res .* vmax^2 ./ qmax
 end
