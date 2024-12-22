@@ -22,4 +22,8 @@ writeFnlm
 readFnlm
 rate
 ModelDMSM
+partial_rate
+PartialRate
+writeK
+readK
 ```
