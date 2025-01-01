@@ -80,7 +80,7 @@ function I_lvq(lnvnq_max, model::ModelDMSM, v_basis::RadialBasis,
     return res
 end
 
-function I_lvq_vec(lnvnq_max, model::ModelDMSM, 
+function kinematic_I(lnvnq_max, model::ModelDMSM, 
     v_basis::RadialBasis, q_basis::RadialBasis)
     l_max, nv_max, nq_max = lnvnq_max
 

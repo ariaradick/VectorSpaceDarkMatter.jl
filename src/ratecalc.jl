@@ -125,7 +125,7 @@ function _pr(ellmax, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
     nv_max = size(pfv.fnlm)[1]-1
     nq_max = size(pfq.fnlm)[1]-1
 
-    mcI = I_lvq_vec((ellmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
+    mcI = kinematic_I((ellmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
     mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
            use_measurements=use_measurements) for ell in 0:ellmax]))
     
