@@ -333,3 +333,5 @@ function rate(R::Array{T}, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
     end
     return res .* vmax^2 ./ qmax
 end
+
+rate(R, exp::ExposureFactor, mcK::PartialRate) = exp.total .* rate(R, mcK)
