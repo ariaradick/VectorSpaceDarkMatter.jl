@@ -16,11 +16,12 @@ struct ExposureFactor
     N_T::Float64
     sigma0::Float64
     rhoX::Float64
+    T_exp::Float64
     total::Float64
 
-    function ExposureFactor(N_T, sigma0, rhoX)
-        tot = N_T*ccms*1e9*sigma0*rhoX
-        return new(N_T, sigma0, rhoX, tot)
+    function ExposureFactor(N_T, sigma0, rhoX, T_exp)
+        tot = N_T*ccms*1e9*sigma0*rhoX*T_exp
+        return new(N_T, sigma0, rhoX, T_exp, tot)
     end
 end
 
@@ -252,13 +253,11 @@ function rate(R::T, model::ModelDMSM, pfv::ProjectedF,
               ) where T<:Union{Quaternion,Rotor}
 
     ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
-    vmax = pfv.radial_basis.umax
-    qmax = pfq.radial_basis.umax
     
     G = G_matrices(R, ℓmax)
     mcK = _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
 
-    return dot(mcK, G)*vmax^2/qmax
+    return dot(mcK, G)
 end
 
 function rate(model::ModelDMSM, pfv::ProjectedF, 
@@ -273,8 +272,6 @@ function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF,
               ) where T<:Union{Quaternion,Rotor}
 
     ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
-    vmax = pfv.radial_basis.umax
-    qmax = pfq.radial_basis.umax
 
     D = D_prep(ℓmax)
     G = G_matrices(one(RotorF64), ℓmax)
@@ -286,13 +283,13 @@ function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF,
         G_matrices!(G, D)
         res[i] = dot(mcK,G)
     end
-    return res .* vmax^2 ./ qmax
+    return res
 end
 
 function rate(R, exp::ExposureFactor, model::ModelDMSM, pfv::ProjectedF, 
               pfq::ProjectedF; ell_max=nothing, use_measurements=false)
     r = rate(R,model,pfv,pfq;ell_max=ell_max,use_measurements=use_measurements)
-    return @. r*exp.total
+    return @. r*exp.total*vmax^2/qmax
 end
 
 """
@@ -308,18 +305,12 @@ the maximum ``\\ell`` for each of `pfv` and `pfq`.
 Measurements are not supported here (yet).
 """
 function rate(R::T, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
-    vmax = K.v_basis.umax
-    qmax = K.q_basis.umax
-
     G = G_matrices(R, ℓmax)
     Kvec = Measurements.value.(mcK.K)
-    return dot(Kvec, G)*vmax^2/qmax
+    return dot(Kvec, G)
 end
 
 function rate(R::Array{T}, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
-    vmax = K.v_basis.umax
-    qmax = K.q_basis.umax
-
     D = D_prep(ℓmax)
     G = G_matrices(one(RotorF64), ℓmax)
 
@@ -331,7 +322,11 @@ function rate(R::Array{T}, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
         G_matrices!(G, D)
         res[i] = dot(Kvec,G)
     end
-    return res .* vmax^2 ./ qmax
+    return res
 end
 
-rate(R, exp::ExposureFactor, mcK::PartialRate) = exp.total .* rate(R, mcK)
+function rate(R, exp::ExposureFactor, mcK::PartialRate)
+    vmax = mcK.v_basis.umax
+    qmax = mcK.q_basis.umax
+    @. exp.total * rate(R, mcK) * vmax^2 / qmax
+end
