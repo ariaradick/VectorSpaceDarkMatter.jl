@@ -203,7 +203,7 @@ function T_matrix(ℓmax)
                              gamma(ell-k+1) * gamma(0.5*(k-ell+1)))
         end
     end
-    return LowerTriangular(res')
+    return LowerTriangular(transpose(res))
 end
 
 function add_T_vector!(I, a, v1, v2, q1, q2; fdmn=0)
