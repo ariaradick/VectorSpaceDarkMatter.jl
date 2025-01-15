@@ -117,6 +117,8 @@ function ProjectF(f::f_uSph, nl_max::Tuple{Int,Int},
             else
                 int_pars = (integ_params..., atol=f000*1e-6)
             end
+        else
+            int_pars = integ_params
         end
     else
         int_pars = integ_params
