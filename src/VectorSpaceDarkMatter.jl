@@ -1,7 +1,7 @@
 module VectorSpaceDarkMatter
 
 using Measurements
-import LinearAlgebra: dot, *, tr, LowerTriangular
+import LinearAlgebra: dot, *, tr, LowerTriangular, lmul!
 import DelimitedFiles: readdlm, writedlm
 import SpecialFunctions: gamma, besselix
 import PolyLog: reli2

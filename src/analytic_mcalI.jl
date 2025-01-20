@@ -238,7 +238,7 @@ function not_mI_star!(I, a, n, v12_star, q12_star)
     v1,v2 = v12_star
     q1,q2 = q12_star
     if v1==v2 || q1==q2
-        return 0.0 # No integration volume
+        return # No integration volume
     end
     if q2 < q1
         error("q12 must be ordered.")
@@ -249,12 +249,12 @@ function not_mI_star!(I, a, n, v12_star, q12_star)
     include_R2 = true
     if v2 < 1.0
         # v2 is below the velocity threshold. mcaI=0
-        return 0.0
+        return
     end
     tilq_m,tilq_p = v2 - sqrt(v2^2-1.0), v2 + sqrt(v2^2-1.0)
     if tilq_m > q2 || tilq_p < q1
         # in this case v2 < vmin(q) for all q in [q1,q2]
-        return 0.0
+        return
     end
     # Else: there are some q satisfying vmin(q) < vr2 in this interval.
     if v1 < 1.0
