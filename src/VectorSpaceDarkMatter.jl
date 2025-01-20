@@ -5,7 +5,7 @@ import LinearAlgebra: dot, *, tr, LowerTriangular, lmul!
 import DelimitedFiles: readdlm, writedlm
 import SpecialFunctions: gamma, besselix
 import PolyLog: reli2
-import HypergeometricFunctions._₂F₁ as hyp2f1
+# import HypergeometricFunctions._₂F₁ as hyp2f1
 import HCubature: hcubature
 using MCIntegration
 using Quaternionic

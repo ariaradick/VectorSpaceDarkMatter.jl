@@ -23,8 +23,22 @@ function _c_alpha_int(α, x)
         return 0.5*x - log(1+x)
     elseif α == 2
         return 0.125*x^2 - 0.5*x + 0.5*log(1+x)
+    elseif α > 0
+        res = (-1)^α * log(1+x)/α + (1+x)^α / (2*α^2)
+        for j in 1:(α-1)
+            println(res)
+            binm = binomial(Float64(α), j) + binomial(Float64(α-1), j)
+            res += (-1)^(α-j) * (1+x)^j * binm / (2*α*j)
+        end
+        return res
     else
-        return x^α / α^2 * (0.5 - hyp2f1(1, α, 1+α, -x))
+        res = (-1)^α * log((1+x)/x)/α - (1+1/x)^(-α) / (2*α^2)
+        for j in 1:(-α-1)
+            println(res)
+            binm = binomial(Float64(-α), j) + binomial(Float64(-α-1), j)
+            res += (-1)^(α+j) * ((1+x)/x)^j * binm / (2*α*j)
+        end
+        return res
     end
 end
 
