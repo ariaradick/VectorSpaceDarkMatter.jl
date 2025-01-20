@@ -26,7 +26,6 @@ function _c_alpha_int(α, x)
     elseif α > 0
         res = (-1)^α * log(1+x)/α + (1+x)^α / (2*α^2)
         for j in 1:(α-1)
-            println(res)
             binm = binomial(Float64(α), j) + binomial(Float64(α-1), j)
             res += (-1)^(α-j) * (1+x)^j * binm / (2*α*j)
         end
@@ -34,7 +33,6 @@ function _c_alpha_int(α, x)
     else
         res = (-1)^α * log((1+x)/x)/α - (1+1/x)^(-α) / (2*α^2)
         for j in 1:(-α-1)
-            println(res)
             binm = binomial(Float64(-α), j) + binomial(Float64(-α-1), j)
             res += (-1)^(α+j) * ((1+x)/x)^j * binm / (2*α*j)
         end
