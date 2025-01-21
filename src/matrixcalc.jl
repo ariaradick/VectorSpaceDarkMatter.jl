@@ -4,7 +4,7 @@
 Stores the relevant model parameters.
 
 `beta` : Two times the power of ``q`` in the dark matter form factor, 
-         ``F_{DM} \\sim (\\alpha m_e / q)^{\\beta/2}``
+         ``F_{DM} \\sim (q / \\alpha m_e)^{\\beta/2}``
 
 `gamma` : Two times the power of ``v`` in the dark matter form factor, 
          ``F_{DM} \\sim v^{\\gamma/2}``
@@ -23,6 +23,21 @@ struct ModelDMSM
     deltaE::Float64
 end
 
+"""
+    ModelDMSM(fdm_n, mX, mSM, deltaE)
+
+Stores the relevant model parameters. Can be called with just `fdm_n` to
+correspond with typically-used dark matter form factors.
+
+`fdm_n` : The power ``n`` of ``1/q`` in the dark matter form factor, 
+         ``F_{DM} \\sim (\\alpha m_e / q)^{n}``
+
+`mX` : dark matter mass in eV
+
+`mSM` : mass of target particle in eV
+
+`deltaE` : discrete final state energy in eV
+"""
 function ModelDMSM(fdm_n, mX, mSM, deltaE)
     ModelDMSM(-2*fdm_n, 0, mX, mSM, deltaE)
 end
