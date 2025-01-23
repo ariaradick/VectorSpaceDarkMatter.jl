@@ -29,7 +29,7 @@ function plm_norm(ell, m, x)
         # Evaluate now, to avoid 1/sqrt(1-x^2) division errors.
         return Int(m==0) * (x^(ell%2))
     end
-    sqrt_1_x2 = (1-x2)^0.5
+    sqrt_1_x2 = sqrt(1-x2)
     if m==0
         # Upward recursion along m=0 to (l,0). Bonnet:
         if ell==1
@@ -47,24 +47,79 @@ function plm_norm(ell, m, x)
         # get the (l,1) term, from the (l-1,0) and (l,0) Legendre polynomials:
     # else: use horizontal recursion from (m,m) to (ell,m)
     # modified Bonnet:
-    sqrt_1_x2 = (1-x2)^0.5
+    sqrt_1_x2 = sqrt(1-x2)
     m_sqrd = 1. # l!/(l-m)! * l!/(l+m)!
     for i in 0:(m-1)
         # until i=m-1:
         m_sqrd *= 1 - 0.5/(1+i)
     end
-    Pk_minus2 = sqrt_1_x2^m * m_sqrd^0.5 #l=m
+    Pk_minus2 = sqrt_1_x2^m * sqrt(m_sqrd) #l=m
     if ell==m
         return Pk_minus2
     end
-    Pk_minus1 = (2*m+1)^0.5 * x * Pk_minus2 #l=m+1
+    Pk_minus1 = sqrt(2*m+1) * x * Pk_minus2 #l=m+1
     if ell==m+1
         return Pk_minus1
     end
     for k in m+2:ell
-        Pk = ((2*k-1)*x*Pk_minus1 - ((k-1)^2-m^2)^0.5*Pk_minus2)/(k^2-m^2)^0.5
+        Pk = ((2*k-1)*x*Pk_minus1 - sqrt((k-1)^2-m^2)*Pk_minus2)/sqrt(k^2-m^2)
         Pk_minus2 = Pk_minus1
         Pk_minus1 = Pk
+    end
+    return Pk
+end
+
+function _p_ell_all!(pk, ell_max, x)
+    x2 = x^2
+    if x2 >= 1.0
+        # Evaluate now, to avoid 1/sqrt(1-x^2) division errors.
+        return
+    end
+
+    if ell_max > 0
+        pk[2] = x
+    end
+    for k in 2:ell_max
+        pk[k+1] = ((2-1/k)*x*pk[k] - (1-1/k)*pk[k-1])
+    end
+end
+
+function _plm_all!(pk, ell_max, m, x)
+    x2 = x^2
+    if x2 >= 1.0
+        # Evaluate now, to avoid 1/sqrt(1-x^2) division errors.
+        return
+    end
+
+    sqrt_1_x2 = sqrt(1-x2)
+    m_sqrd = 1. # l!/(l-m)! * l!/(l+m)!
+    for i in 0:(m-1)
+        # until i=m-1:
+        m_sqrd *= 1 - 0.5/(1+i)
+    end
+
+    pk[1] = sqrt_1_x2^m * sqrt(m_sqrd)
+    if ell_max > m
+        pk[2] = sqrt(2*m+1) * x * pk[1]
+    end
+    for k in (m+2):ell_max
+        dk = k-m
+        pk[dk+1] = ((2*k-1)*x*pk[dk] - sqrt((k-1)^2-m^2)*pk[dk-1])/sqrt(k^2-m^2)
+    end
+end
+
+function _p_ell_all(ell_max, x)
+    Pk = ones(Float64, ell_max+1)
+    _p_ell_all!(Pk, ell_max, x)
+    return Pk
+end
+
+function _plm_all(ell_max, m, x)
+    Pk = ones(Float64, ell_max+1-m)
+    if m==0
+        _p_ell_all!(Pk,ell_max,x)
+    else
+        _plm_all!(Pk,ell_max,m,x)
     end
     return Pk
 end
