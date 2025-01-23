@@ -62,9 +62,17 @@ function get_mcalK_ell(pfv::ProjectedF, pfq::ProjectedF, ell, I_ell;
     iq_vals, mq_vals = _get_im_vals(pfq, ell)
     Nm = 2*ell+1
 
-    fv_vals = Measurements.value.(pfv.fnlm)
-    fq_vals = Measurements.value.(pfq.fnlm)
-    Il_vals = Measurements.value.(I_ell)
+    if eltype(pfv.fnlm) <: Measurement
+        fv_vals = Measurements.value.(pfv.fnlm)
+    else
+        fv_vals = pfv.fnlm
+    end
+    if eltype(pfq.fnlm) <: Measurement
+        fq_vals = Measurements.value.(pfq.fnlm)
+    else
+        fq_vals = pfq.fnlm
+    end
+    Il_vals = I_ell
 
     K_val = zeros(Float64, (Nm, Nm))
 
@@ -73,10 +81,11 @@ function get_mcalK_ell(pfv::ProjectedF, pfq::ProjectedF, ell, I_ell;
     if !use_measurements || (sum(eltypes .<: Measurement) == 0)
         for jq in eachindex(mq_vals)
             kq = mq_vals[jq] + ell + 1
+            fqj = @view fq_vals[:,iq_vals[jq]]
             for jv in eachindex(mv_vals)
+                fvj = @view fv_vals[:,iv_vals[jv]]
                 kv = mv_vals[jv] + ell + 1
-                K_val[kv, kq] = fv_vals[:,iv_vals[jv]]' * Il_vals *
-                                fq_vals[:,iq_vals[jq]]
+                K_val[kv, kq] = dot(fvj, Il_vals, fqj)
             end
         end
         return K_val
