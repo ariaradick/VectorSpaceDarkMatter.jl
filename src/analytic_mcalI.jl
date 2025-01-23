@@ -118,7 +118,7 @@ function not_mI_star!(I, a, n, m, v1, v2, q1, q2)
     end
     include_R2 = true
     if v2 < 1.0
-        # v2 is below the velocity threshold. mcaI=0
+        # v2 is below the velocity threshold. mcalI=0
         return
     end
     tilq_m,tilq_p = v2 - sqrt(v2^2-1.0), v2 + sqrt(v2^2-1.0)
