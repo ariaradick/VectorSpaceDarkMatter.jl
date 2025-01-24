@@ -26,14 +26,15 @@ struct ExposureFactor
 end
 
 """
-    PartialRate(K::Vector{A}, model::ModelDMSM, v_basis::RadialBasis,
-                q_basis::RadialBasis)
+    PartialRate(K::Vector{A}, ell_max::Float64, model::ModelDMSM, 
+                v_basis::RadialBasis, q_basis::RadialBasis)
 
 Stores the flattened partial rate matrix along with the relevant model and
 basis parameters.
 """
 struct PartialRate{A}
     K::Vector{A}
+    ell_max::Int64
     model::ModelDMSM
     v_basis::RadialBasis
     q_basis::RadialBasis
@@ -156,7 +157,7 @@ function partial_rate(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
     ell_max=nothing, use_measurements=true)
     ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
     mcK = _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
-    return PartialRate(mcK, model, pfv.radial_basis, pfq.radial_basis)
+    return PartialRate(mcK, ℓmax, model, pfv.radial_basis, pfq.radial_basis)
 end
 
 """
@@ -165,6 +166,7 @@ end
 Writes a partial rate matrix ``\\mathcal{K}`` stored in `mcK` to `outfile`.
 """
 function writeK(outfile, mcK::PartialRate)
+    ellmax = mcK.ell_max
     vtype = typeof(mcK.v_basis)
     vmax = mcK.v_basis.umax
     qtype = typeof(mcK.q_basis)
@@ -172,7 +174,7 @@ function writeK(outfile, mcK::PartialRate)
     model = mcK.model
 
     open(outfile, "w") do io
-        write(io, "#, v_type: $vtype, vMax: $vmax, q_type: $qtype, qMax: $qmax\n")
+        write(io, "#, ell_max: $ellmax, v_type: $vtype, vMax: $vmax, q_type: $qtype, qMax: $qmax\n")
         write(io, "#, fdm_n: $(model.fdm_n), mX: $(model.mX), mSM: $(model.mSM), deltaE: $(model.deltaE)\n")
         if eltype(mcK.K) == Float64
             write(io, "#, K\n")
@@ -227,10 +229,11 @@ function readK(infile, v_basis::RadialBasis, q_basis::RadialBasis; use_err=true)
     end
 
     B = _get_K_info(infile)
+    ellmax = parse(Float64, B["ell_max"])
     model_params = parse.(Float64, [B["fdm_n"], B["mX"], B["mSM"], B["deltaE"]])
 
-    mcK = PartialRate(Kvec, ModelDMSM(model_params...), v_basis, q_basis)
-
+    mcK = PartialRate(Kvec, ellmax, ModelDMSM(model_params...), 
+                      v_basis, q_basis)
     return mcK
 end
 
@@ -314,14 +317,14 @@ the maximum ``\\ell`` for each of `pfv` and `pfq`.
 Measurements are not supported here (yet).
 """
 function rate(R::T, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
-    G = G_matrices(R, ℓmax)
+    G = G_matrices(R, mcK.ell_max)
     Kvec = Measurements.value.(mcK.K)
     return dot(Kvec, G)
 end
 
 function rate(R::Array{T}, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
-    D = D_prep(ℓmax)
-    G = G_matrices(one(RotorF64), ℓmax)
+    D = D_prep(mcK.ell_max)
+    G = G_matrices(one(RotorF64), mcK.ell_max)
 
     Kvec = Measurements.value.(mcK.K)
 
