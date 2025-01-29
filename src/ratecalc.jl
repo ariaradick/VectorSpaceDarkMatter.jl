@@ -1,6 +1,6 @@
 
 """
-    ExposureFactor(N_T, sigma0, rhoX)
+    ExposureFactor(N_T, sigma0, rhoX, T_exp)
 
 Necessary constants for calculating ``k_0``, the overall prefactor for the rate.
 
@@ -11,6 +11,8 @@ of the unit cell.
 `sigma0` : Reference cross-section in cm^2, ``\\bar{\\sigma}_0``
 
 `rhoX` : local DM density in GeV/cm^3, ``\\rho_\\chi``
+
+`T_exp` : Exposure time in seconds
 """
 struct ExposureFactor
     N_T::Float64
