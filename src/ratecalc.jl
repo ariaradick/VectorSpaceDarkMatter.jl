@@ -1,6 +1,6 @@
 
 """
-    ExposureFactor(N_T, sigma0, rhoX, T_exp)
+    ExposureFactor(N_T, sigma0, rhoX)
 
 Necessary constants for calculating ``k_0``, the overall prefactor for the rate.
 
@@ -11,35 +11,29 @@ of the unit cell.
 `sigma0` : Reference cross-section in cm^2, ``\\bar{\\sigma}_0``
 
 `rhoX` : local DM density in GeV/cm^3, ``\\rho_\\chi``
-
-`T_exp` : Exposure time in seconds
 """
 struct ExposureFactor
     N_T::Float64
     sigma0::Float64
     rhoX::Float64
-    T_exp::Float64
     total::Float64
 
-    function ExposureFactor(N_T, sigma0, rhoX, T_exp)
-        tot = N_T*ccms*1e9*sigma0*rhoX*T_exp
-        return new(N_T, sigma0, rhoX, T_exp, tot)
+    function ExposureFactor(N_T, sigma0, rhoX)
+        tot = N_T*ccms*1e9*sigma0*rhoX
+        return new(N_T, sigma0, rhoX, tot)
     end
 end
 
 """
-    PartialRate(K::Vector{A}, ell_max::Float64, model::ModelDMSM, 
-                v_basis::RadialBasis, q_basis::RadialBasis)
+    McalK(K::Vector{A}, ell_max::Int64, vmax::Float64, qmax::Float64)
 
-Stores the flattened partial rate matrix along with the relevant model and
-basis parameters.
+Stores the flattened ``\\mathcal{K}`` matrix along with relevant parameters.
 """
-struct PartialRate{A}
+struct McalK{A<:Union{Measurement,Float64}}
     K::Vector{A}
     ell_max::Int64
-    model::ModelDMSM
-    v_basis::RadialBasis
-    q_basis::RadialBasis
+    vmax::Float64
+    qmax::Float64
 end
 
 function _get_im_vals(pf::ProjectedF, ell)
@@ -132,52 +126,145 @@ function get_ℓmax(args...; ell_max=nothing)
     return ℓmax
 end
 
+function _mcalK_ell!(K_ell, I_ell, ell, fv, iv, mv, fq, iq, mq)
+    for jq in eachindex(mq)
+        kq = mq[jq] + ell + 1
+        fqj = @view fq[:,iq[jq]]
+        for jv in eachindex(mv)
+            fvj = @view fv[:,iv[jv]]
+            kv = mv[jv] + ell + 1
+            K_ell[kv, kq] = dot(fvj, I_ell, fqj)
+        end
+    end
+end
+
+function _mcalK_ell_err!(K_ell, K_ell_err, I_ell, ell, fv, fv_errs, iv, mv, 
+                         fq, fq_errs, iq, mq)
+    for jq in eachindex(mq)
+    kq = mq[jq] + ell + 1
+    fqn = @view fq[:,iq[jq]]
+    fqn_err = @view fq_errs[:,iq[jq]]
+
+        for jv in eachindex(mv)
+            kv = mv[jv] + ell + 1
+            fvn = @view fv[:,iv[jv]]
+            fvn_err = @view fv_errs[:,iv[jv]]
+
+            k_mat_err = @. sqrt( (fvn_err' * fqn * I_ell)^2 +
+                                    (fqn_err * fvn' * I_ell)^2 )
+
+            K_ell[kv, kq] = dot(fvn, I_ell, fqn)
+            K_ell_err[kv, kq] = sqrt(dot(k_mat_err, k_mat_err))
+        end
+    end
+end
+
+function _get_pf_vals(pf::ProjectedF{A,B}) where {A<:Measurement, B<:RadialBasis}
+    return Measurements.value.(pf.fnlm)
+end
+
+function _get_pf_vals(pf::ProjectedF{Float64,B}) where B<:RadialBasis
+    return pf.fnlm
+end
+
+function _pr(ellmax, pfv::ProjectedF, pfq::ProjectedF, mcI; 
+             use_measurements=true)
+    vmax = pfv.radial_basis.umax
+
+    fv_vals = _get_pf_vals(pfv)
+    fq_vals = _get_pf_vals(pfq)
+
+    K_vals = zeros(Float64, WignerDsize(ellmax))
+
+    eltypes = eltype.((pfv.fnlm, pfq.fnlm, mcI))
+
+    if !use_measurements || (sum(eltypes .<: Measurement) == 0)
+        for ell in 0:ellmax
+            iv_vals, mv_vals = _get_im_vals(pfv, ell)
+            iq_vals, mq_vals = _get_im_vals(pfq, ell)
+
+            I_ell = @view mcI[:,:,ell+1]
+
+            i1 = WignerDindex(ell, -ell, -ell)
+            i2 = WignerDindex(ell, ell, ell)
+            ksize = 2*ell+1
+
+            K_ell = @views reshape(K_vals[i1:i2], (ksize,ksize))
+
+            _mcalK_ell!(K_ell, I_ell, ell, fv_vals, iv_vals, mv_vals, 
+                        fq_vals, iq_vals, mq_vals)
+        end
+        K_vals .*= vmax^3
+        return K_vals
+    else
+        K_errs = zeros(Float64, WignerDsize(ellmax))
+        fv_errs = Measurements.uncertainty.(pfv.fnlm)
+        fq_errs = Measurements.uncertainty.(pfq.fnlm)
+
+        for ell in 0:ellmax
+            iv_vals, mv_vals = _get_im_vals(pfv, ell)
+            iq_vals, mq_vals = _get_im_vals(pfq, ell)
+
+            I_ell = @view mcI[:,:,ell+1]
+
+            i1 = WignerDindex(ell, -ell, -ell)
+            i2 = WignerDindex(ell, ell, ell)
+            ksize = 2*ell+1
+
+            K_ell = @views reshape(K_vals[i1:i2], (ksize,ksize))
+            K_err = @views reshape(K_errs[i1:i2], (ksize,ksize))
+
+            _mcalK_ell_err!(K_ell, K_err, I_ell, ell, fv_vals, fv_errs, iv_vals,
+                            mv_vals, fq_vals, fq_errs, iq_vals, mq_vals)
+        end
+        K_vals .*= vmax^3
+        K_errs .*= vmax^3
+        return K_vals .± K_errs
+    end
+end
+
 function _pr(ellmax, model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
     use_measurements=true)
-
     nv_max = size(pfv.fnlm)[1]-1
     nq_max = size(pfq.fnlm)[1]-1
-
-    mcI = kinematic_I((ellmax, nv_max, nq_max), model, pfv.radial_basis, pfq.radial_basis)
-    mcK = collect(Iterators.flatten([get_mcalK_ell(pfv, pfq, ell, mcI[:,:,ell+1]; 
-           use_measurements=use_measurements) for ell in 0:ellmax]))
-    
-    return mcK*pfv.radial_basis.umax^3
+    mcI = kinematic_I((ellmax, nv_max, nq_max), model, pfv.radial_basis, 
+                       pfq.radial_basis)
+    return _pr(ellmax, pfv, pfq, mcI; use_measurements=use_measurements)
 end
 
 """
-    partial_rate(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
+    get_mcalK(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
                  ell_max=nothing, use_measurements=true)
 
-Calculates the partial rate matrix, stored as a flattened vector, for a given
-`model`, velocity distribution (`pfv`), and material form factor (`pfq`).
+Calculates the matrix ``\\mathcal{K}``, stored as a flattened vector, for a 
+given `model`, velocity distribution (`pfv`), and material form factor (`pfq`).
 
 The maximum ``\\ell`` that is used is the minimum of the specified `ell_max` and
 the maximum ``\\ell`` for each of `pfv` and `pfq`.
 """
-function partial_rate(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
+function get_mcalK(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF; 
     ell_max=nothing, use_measurements=true)
     ℓmax = get_ℓmax(pfv, pfq; ell_max=ell_max)
     mcK = _pr(ℓmax, model, pfv, pfq; use_measurements=use_measurements)
-    return PartialRate(mcK, ℓmax, model, pfv.radial_basis, pfq.radial_basis)
+    return McalK(mcK, ℓmax, pfv.radial_basis.umax, pfq.radial_basis.umax)
+end
+
+function partial_rate(mcK::McalK)
+    return mcK.K .* (mcK.vmax^2 / mcK.qmax)
 end
 
 """
-    writeK(outfile, mcK::PartialRate)
+    writeK(outfile, mcK::McalK)
 
 Writes a partial rate matrix ``\\mathcal{K}`` stored in `mcK` to `outfile`.
 """
-function writeK(outfile, mcK::PartialRate)
+function writeK(outfile, mcK::McalK)
     ellmax = mcK.ell_max
-    vtype = typeof(mcK.v_basis)
-    vmax = mcK.v_basis.umax
-    qtype = typeof(mcK.q_basis)
-    qmax = mcK.q_basis.umax
-    model = mcK.model
+    vmax = mcK.vmax
+    qmax = mcK.qmax
 
     open(outfile, "w") do io
-        write(io, "#, ell_max: $ellmax, v_type: $vtype, vMax: $vmax, q_type: $qtype, qMax: $qmax\n")
-        write(io, "#, fdm_n: $(model.fdm_n), mX: $(model.mX), mSM: $(model.mSM), deltaE: $(model.deltaE)\n")
+        write(io, "#, ell_max: $ellmax, vMax: $vmax, qMax: $qmax\n")
         if eltype(mcK.K) == Float64
             write(io, "#, K\n")
             writedlm(io, mcK.K, ',')
@@ -211,41 +298,36 @@ function _get_K_info(infile)
 end
 
 """
-    readK(infile[, v_basis::RadialBasis, q_basis::RadialBasis]; use_err=true)
+    readK(infile[, vmax, qmax]; use_err=true)
 
 Reads partial rate matrix from `infile`. Can optionally manually define the 
-bases via `v_basis` and `q_basis` arguments, otherwise will attempt to read
-from the header of the csv file. Note that automatic basis reading only works
-for `Wavelet` bases.
+basis maximums via `vmax` and `qmax` arguments, otherwise will attempt to read
+from the header of the csv file.
 
 `use_err` : Whether or not to load the uncertainties.
 """
-function readK(infile, v_basis::RadialBasis, q_basis::RadialBasis; use_err=true)
+function readK(infile, vmax, qmax; use_err=true)
     input = readdlm(infile, ','; comments=true)
     if (size(input)[2] == 1) || !(use_err)
-        Kvec = @view input[:]
+        Kvec = input[:]
     elseif size(input)[2] == 2
-        Kvals = @view input[:,1]
-        Kerrs = @view input[:,2]
+        Kvals = input[:,1]
+        Kerrs = input[:,2]
         Kvec = (Kvals .± Kerrs)
     end
 
     B = _get_K_info(infile)
-    ellmax = parse(Float64, B["ell_max"])
-    model_params = parse.(Float64, [B["fdm_n"], B["mX"], B["mSM"], B["deltaE"]])
+    ellmax = parse(Int64, B["ell_max"])
 
-    mcK = PartialRate(Kvec, ellmax, ModelDMSM(model_params...), 
-                      v_basis, q_basis)
+    mcK = McalK(Kvec, ellmax, vmax, qmax)
     return mcK
 end
 
 function readK(infile; use_err=true)
     B = _get_K_info(infile)
-    if (B["v_type"] in ["Wavelet", "wavelet"]) && (B["q_type"] in ["Wavelet", "wavelet"])
-        vbasis = Wavelet(parse(Float64, B["vMax"]))
-        qbasis = Wavelet(parse(Float64, B["qMax"]))
-    end
-    return readK(infile, vbasis, qbasis; use_err=use_err)
+    vmax = parse(Float64, B["vMax"])
+    qmax = parse(Float64, B["qMax"])
+    return readK(infile, vmax, qmax; use_err=use_err)
 end
 
 """
@@ -260,7 +342,7 @@ be a vector of quaternions or rotors.
 The maximum ``\\ell`` that is used is the minimum of the specified `ell_max` and
 the maximum ``\\ell`` for each of `pfv` and `pfq`.
 
-Using measurements here is currently slow.
+Using measurements here is currently slow and not recommended.
 """
 function rate(R::T, model::ModelDMSM, pfv::ProjectedF, 
               pfq::ProjectedF; ell_max=nothing, use_measurements=false
@@ -301,13 +383,20 @@ function rate(R::Array{T}, model::ModelDMSM, pfv::ProjectedF,
 end
 
 function rate(R, exp::ExposureFactor, model::ModelDMSM, pfv::ProjectedF, 
-              pfq::ProjectedF; ell_max=nothing, use_measurements=false)
+              pfq::ProjectedF; ell_max=nothing, use_measurements=false,
+              t_unit='s')
+    if t_unit == 's'
+        pref = 1.0
+    elseif t_unit == 'y'
+        pref = SECONDS_PER_YEAR
+    end
     r = rate(R,model,pfv,pfq;ell_max=ell_max,use_measurements=use_measurements)
-    return @. r*exp.total*vmax^2/qmax
+    @. r *= pref*exp.total*vmax^2/(qmax)
+    return r
 end
 
 """
-    rate(R, mcK::PartialRate)
+    rate(R, mcK::McalK)
 
 Calculates the rate for a given partial rate matrix `mcK` and rotation `R`
 given as a quaternion or rotor (to use other rotations, see `Quaternionic.jl`'s
@@ -318,13 +407,13 @@ the maximum ``\\ell`` for each of `pfv` and `pfq`.
 
 Measurements are not supported here (yet).
 """
-function rate(R::T, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
+function rate(R::T, mcK::McalK) where T<:Union{Quaternion,Rotor}
     G = G_matrices(R, mcK.ell_max)
     Kvec = Measurements.value.(mcK.K)
     return dot(Kvec, G)
 end
 
-function rate(R::Array{T}, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
+function rate(R::Array{T}, mcK::McalK) where T<:Union{Quaternion,Rotor}
     D = D_prep(mcK.ell_max)
     G = G_matrices(one(RotorF64), mcK.ell_max)
 
@@ -339,8 +428,36 @@ function rate(R::Array{T}, mcK::PartialRate) where T<:Union{Quaternion,Rotor}
     return res
 end
 
-function rate(R, exp::ExposureFactor, mcK::PartialRate)
+function rate(R, exp::ExposureFactor, mcK::McalK; t_unit='s')
+    if t_unit == 's'
+        pref = 1.0
+    elseif t_unit == 'y'
+        pref = SECONDS_PER_YEAR
+    end
     vmax = mcK.v_basis.umax
     qmax = mcK.q_basis.umax
-    @. exp.total * rate(R, mcK) * vmax^2 / qmax
+    @. pref * exp.total * rate(R, mcK) * vmax^2 / (qmax)
+end
+
+"""
+    N_events(R, T_exp_s, exp::ExposureFactor, model::ModelDMSM, 
+    pfv::ProjectedF, pfq::ProjectedF; ell_max=nothing, use_measurements=false)
+
+Returns the total number of expected events for a given rotation `R` and 
+exposure time `T_exp_s` in seconds.
+"""
+function N_events(R, T_exp_s, exp::ExposureFactor, model::ModelDMSM, 
+    pfv::ProjectedF, pfq::ProjectedF; ell_max=nothing, use_measurements=false)
+    rate(R, exp, model, pfv, pfq; ell_max=ell_max, 
+    use_measurements=use_measurements) * T_exp_s
+end
+
+"""
+    N_events(R, T_exp_s, exp::ExposureFactor, mcK::McalK)
+
+Returns the total number of expected events for a given rotation `R` and 
+exposure time `T_exp_s` in seconds.
+"""
+function N_events(R, T_exp_s, exp::ExposureFactor, mcK::McalK)
+    rate(R,exp,mcK) * T_exp_s
 end
