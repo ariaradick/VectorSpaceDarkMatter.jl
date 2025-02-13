@@ -23,7 +23,7 @@ readFnlm
 rate
 ModelDMSM
 partial_rate
-PartialRate
+McalK
 writeK
 readK
 ```
