@@ -43,11 +43,15 @@ Struct that adds decorations to a function ``f(u, \\theta, \\phi)`` that tell
            ``\\langle \\ell m | f \\rangle = 0 `` if ``(\\ell+m)`` is odd
 
 `phi_even` : (boolean) if `f_uSph(u,theta,phi)` = `f_uSph(u,theta,-phi)`
-             Implies ``\\langle \\ell m | f \\rangle`` = 0 if ``m`` is odd
+             Implies ``\\langle \\ell m | f \\rangle`` = 0 if ``m < 0``
 
 `phi_cyclic` : (integer) if `f_uSph(u,theta,phi)` = `f_uSph(u,theta,phi + 2*pi/n)`
 
 `phi_symmetric` : (boolean) if `f_uSph(u,theta)` is independent of `phi`
+
+`center_Z2` : (boolean) if ``f(\\vec{u}) = f(-\\vec{u})`` is symmetric under
+                central inversion. Implies ``\\langle \\ell m | f \\rangle = 0``
+                if ``\\ell`` is odd
 """
 struct f_uSph
     f::Function
@@ -55,16 +59,18 @@ struct f_uSph
     phi_even::Bool
     phi_cyclic::Int
     phi_symmetric::Bool
+    center_Z2::Bool
 
     function f_uSph(f::Function; z_even=false, phi_even=false, 
-        phi_cyclic=1, phi_symmetric=false)
-        new(f, z_even, phi_even, phi_cyclic, phi_symmetric)
+        phi_cyclic=1, phi_symmetric=false, center_Z2=false)
+        new(f, z_even, phi_even, phi_cyclic, phi_symmetric, center_Z2)
     end
 end
 
 function LM_vals(f::f_uSph, lmax)
     LM_vals(lmax; z_even=f.z_even, phi_even=f.phi_even, 
-            phi_symmetric=f.phi_symmetric)
+            phi_symmetric=f.phi_symmetric, phi_cyclic=f.phi_cyclic,
+            center_Z2=f.center_Z2)
 end
 
 abstract type RadialBasis end

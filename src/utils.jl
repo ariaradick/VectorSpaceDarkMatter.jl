@@ -143,14 +143,22 @@ function ylm_real(lm::Tuple{Int,Int}, theta, phi)
     return ylm_real(ell, m, theta, phi)
 end
 
-function LM_vals(lmax; z_even=false, phi_even=false, phi_symmetric=false)
-    z = Int(z_even)+1
+function LM_vals(lmax; z_even=false, phi_cyclic=1, phi_even=false, 
+                 phi_symmetric=false, center_Z2=false)
+    z = Int(z_even) + 1
+    cz2 = center_Z2 + 1
     if phi_symmetric
-        return [(ell,0) for ell in 0:z:lmax]
+        if z_even
+            return [(ell,0) for ell in 0:z:lmax]
+        elseif center_Z2
+            return [(ell,0) for ell in 0:cz2:lmax]
+        else
+            return [(ell,0) for ell in 0:lmax]
+        end
     elseif phi_even
-        return [(ell,m) for ell in 0:lmax for m in (ell%2):z:ell if (m%2 == 0)]
+        return [(ell,m) for ell in 0:cz2:lmax for m in (ell%z):z:ell if (m%phi_cyclic==0)]
     else
-        return [(ell,m) for ell in 0:lmax for m in -ell:z:ell]
+        return [(ell,m) for ell in 0:cz2:lmax for m in -ell:z:ell if (m%phi_cyclic==0)]
     end
 end
 
