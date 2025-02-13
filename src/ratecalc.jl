@@ -194,7 +194,7 @@ function _pr(ellmax, pfv::ProjectedF, pfq::ProjectedF, mcI;
             _mcalK_ell!(K_ell, I_ell, ell, fv_vals, iv_vals, mv_vals, 
                         fq_vals, iq_vals, mq_vals)
         end
-        K_vals .*= vmax^3
+        @. K_vals *= vmax^3
         return K_vals
     else
         K_errs = zeros(Float64, WignerDsize(ellmax))
@@ -217,8 +217,8 @@ function _pr(ellmax, pfv::ProjectedF, pfq::ProjectedF, mcI;
             _mcalK_ell_err!(K_ell, K_err, I_ell, ell, fv_vals, fv_errs, iv_vals,
                             mv_vals, fq_vals, fq_errs, iq_vals, mq_vals)
         end
-        K_vals .*= vmax^3
-        K_errs .*= vmax^3
+        @. K_vals *= vmax^3
+        @. K_errs *= vmax^3
         return K_vals .± K_errs
     end
 end

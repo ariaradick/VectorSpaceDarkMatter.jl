@@ -1,13 +1,13 @@
 """
-    ModelDMSM(beta, gamma, mX, mSM, deltaE)
+    ModelDMSM(a, b, mX, mSM, deltaE)
 
 Stores the relevant model parameters.
 
-`beta` : Two times the power of ``q`` in the dark matter form factor, 
-         ``F_{DM} \\sim (q / \\alpha m_e)^{\\beta/2}``
+`a` : Two times the power of ``q`` in the dark matter form factor, 
+         ``F_{DM} \\sim (q / \\alpha m_e)^{a/2}``
 
-`gamma` : Two times the power of ``v`` in the dark matter form factor, 
-         ``F_{DM} \\sim v^{\\gamma/2}``
+`b` : Two times the power of ``v`` in the dark matter form factor, 
+         ``F_{DM} \\sim v^{b/2}``
 
 `mX` : dark matter mass in eV
 
@@ -16,8 +16,8 @@ Stores the relevant model parameters.
 `deltaE` : discrete final state energy in eV
 """
 struct ModelDMSM
-    beta::Int
-    gamma::Int
+    a::Int
+    b::Int
     mX::Float64
     mSM::Float64
     deltaE::Float64
@@ -55,8 +55,8 @@ function _fill_I!(Imat, tmat, lnvnq_max, model::ModelDMSM,
                   v_basis::RadialBasis, q_basis::RadialBasis)
     nv_max, nq_max = lnvnq_max[2:3]
     mX = model.mX
-    n = model.beta
-    m = model.gamma
+    n = model.a
+    m = model.b
     DeltaE = model.deltaE
 
     v0 = v_basis.umax
@@ -95,8 +95,8 @@ function kinematic_I(lnvnq_max, model::ModelDMSM,
     l_max, nv_max, nq_max = lnvnq_max
 
     mX = model.mX
-    n = model.beta
-    m = model.gamma
+    n = model.a
+    m = model.b
     DeltaE = model.deltaE
     mSM = model.mSM
 
