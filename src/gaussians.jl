@@ -30,13 +30,13 @@ function (g::GaussianF)(uvec)
     ui_cart = sph_to_cart(g.uSph)
     duvec = u_cart .- ui_cart
     du2 = dot(duvec, duvec)
-    return g.c/(sqrt(π)*g.sigma)^3 * exp(-du2/g.sigma^2)
+    return g.c/(sqrt(2*π)*g.sigma)^3 * exp(-du2/(2*g.sigma^2))
 end
 
 "Integrand for G_nl."
 function normG_nli_integrand(g::GaussianF, n, ell, x, basis::RadialBasis)
     u_i = g.uSph[1]
-    sigma_i = g.sigma
+    sigma_i = sqrt(2)*g.sigma
 
     z = (2*u_i*x)/sigma_i^2
 
@@ -108,7 +108,7 @@ end
 
 L2 norm of a single Gaussian ``\\int d^3 u \\: g^2(u)``
 """
-f2_norm(g::GaussianF) = g.c^2/(g.sigma * sqrt(2*π))^3
+f2_norm(g::GaussianF) = g.c^2/(g.sigma * 2 * sqrt(π))^3
 
 """
     f2_norm(g::Vector{GaussianF})
@@ -119,12 +119,12 @@ function f2_norm(g::Vector{GaussianF})
     res = 0.0
 
     for gi in g
-        s2i = gi.sigma^2
+        s2i = 2*gi.sigma^2
         ui = sph_to_cart(gi.uSph)
         u2i = dot(ui, ui)
 
         for gj in g
-            s2j = gj.sigma^2
+            s2j = 2*gj.sigma^2
             s2_ij = s2i * s2j / (s2i + s2j)
 
             uj = sph_to_cart(gj.uSph)

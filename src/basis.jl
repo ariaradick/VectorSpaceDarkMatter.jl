@@ -34,7 +34,7 @@ tophat_value(x1, x2; dim=3) = sqrt(dim / (x2^dim - x1^dim))
 
 """
     f_uSph(f::Function; z_even=false, phi_even=false, 
-        phi_cyclic=1, phi_symmetric=false)
+        phi_cyclic=1, phi_symmetric=false, center_Z2=false)
 
 Struct that adds decorations to a function ``f(u, \\theta, \\phi)`` that tell
 `ProjectF` various properties about the function that speed up integration.
