@@ -13,7 +13,7 @@ using SphericalFunctions
 
 export Wavelet, Tophat, f_uSph, GaussianF, f2_norm, ProjectF,
        ProjectedF, FCoeffs, update!, writeFnlm, readFnlm, rate,
-       ModelDMSM, McalK, partial_rate, readK, writeK, PartialRate
+       ModelDMSM, McalK, partial_rate, readK, writeK
 
 include("units.jl")
 include("utils.jl")
