@@ -249,6 +249,12 @@ function get_mcalK(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
     return McalK(mcK, ℓmax, pfv.radial_basis.umax, pfq.radial_basis.umax)
 end
 
+"""
+    partial_rate(mcK::McalK)
+
+Returns the partial rate matrix ``K = v_{\\textrm{max}}^2 / q_{\\textrm{max}}^2
+\\mathcal{K}``
+"""
 function partial_rate(mcK::McalK)
     return mcK.K .* (mcK.vmax^2 / mcK.qmax)
 end
