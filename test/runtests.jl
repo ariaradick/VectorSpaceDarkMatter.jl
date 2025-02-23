@@ -5,13 +5,13 @@ VSDM = VectorSpaceDarkMatter
 @testset "VectorSpaceDarkMatter.jl" begin
     wv_g = Wavelet(960.0*VSDM.km_s)
     g1 = GaussianF(0.4, VSDM.cart_to_sph([0.0, 0.0, -230.0*VSDM.km_s]), 
-                220.0*VSDM.km_s)
+                220.0*VSDM.km_s/sqrt(2))
     pfg_test = ProjectF(g1, (2^10-1, 10), wv_g)
 
-    gg = GaussianF(1.0, [200.0*VSDM.km_s,0.0,0.0], 100.0*VSDM.km_s)
+    gg = GaussianF(1.0, [200.0*VSDM.km_s,0.0,0.0], 100.0*VSDM.km_s/sqrt(2))
     pfgg = ProjectF(gg, (2^10-1,10), Wavelet(960.0*VSDM.km_s))
 
-    ff = GaussianF(1.0, [2.0*VSDM.qBohr,0.0,0.0], 3.0*VSDM.qBohr)
+    ff = GaussianF(1.0, [2.0*VSDM.qBohr,0.0,0.0], 3.0*VSDM.qBohr/sqrt(2))
     pfff = ProjectF(ff, (2^10-1,10), Wavelet(10*VSDM.qBohr))
 
     mm = VSDM.ModelDMSM(0, 100e6, 511e3, 4.03)
