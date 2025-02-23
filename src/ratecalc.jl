@@ -250,6 +250,28 @@ function get_mcalK(model::ModelDMSM, pfv::ProjectedF, pfq::ProjectedF;
 end
 
 """
+    get_mcalK(mcI, pfv::ProjectedF, pfq::ProjectedF; 
+              ell_max=nothing, use_measurements=true)
+
+Calculates the matrix ``\\mathcal{K}``, stored as a flattened vector, for a 
+given kinematic scattering matrix `mcI`, velocity distribution (`pfv`), and 
+material form factor (`pfq`).
+
+The maximum ``\\ell`` that is used is the minimum of the specified `ell_max` and
+the maximum ``\\ell`` for each of `mcI`, `pfv`, `pfq`.
+"""
+function get_mcalK(mcI, pfv::ProjectedF, pfq::ProjectedF; 
+    ell_max=nothing, use_measurements=true)
+    
+    ell_I = size(mcI)[3]
+    lmax = min(ell_max,ell_I)
+
+    ℓmax = get_ℓmax(pfv, pfq; ell_max=lmax)
+    mcK = _pr(ℓmax, pfv, pfq, mcI; use_measurements=use_measurements)
+    return McalK(mcK, ℓmax, pfv.radial_basis.umax, pfq.radial_basis.umax)
+end
+
+"""
     partial_rate(mcK::McalK)
 
 Returns the partial rate matrix ``K = v_{\\textrm{max}}^2 / q_{\\textrm{max}}^2
