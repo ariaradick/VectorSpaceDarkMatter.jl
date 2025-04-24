@@ -10,6 +10,8 @@ import HCubature: hcubature
 using MCIntegration
 using Quaternionic
 using SphericalFunctions
+import FastSphericalHarmonics: sph_mode
+using SphericalHaarTransform
 
 export Wavelet, Tophat, f_uSph, GaussianF, f2_norm, ProjectF,
        ProjectedF, FCoeffs, update!, writeFnlm, readFnlm, rate,

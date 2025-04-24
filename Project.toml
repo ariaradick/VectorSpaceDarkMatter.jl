@@ -5,6 +5,7 @@ version = "0.2.0"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+FastSphericalHarmonics = "d335c211-7587-445e-a753-f0b1fb7e445f"
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
 HypergeometricFunctions = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -14,9 +15,11 @@ PolyLog = "85e3b03c-9856-11eb-0374-4dc1f8670e7f"
 Quaternionic = "0756cd96-85bf-4b6f-a009-b5012ea7a443"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 SphericalFunctions = "af6d55de-b1f7-4743-b797-0829a72cf84e"
+SphericalHaarTransform = "f82b2a20-12c9-425c-bdb8-e1eabd25f0c2"
 
 [compat]
 DelimitedFiles = "1"
+FastSphericalHarmonics = "1.3.2"
 HCubature = "1"
 HypergeometricFunctions = "0.3"
 MCIntegration = "0.4"
@@ -25,6 +28,7 @@ PolyLog = "2"
 Quaternionic = "1, 2, 3"
 SpecialFunctions = "2"
 SphericalFunctions = "2"
+SphericalHaarTransform = "0.1.0"
 julia = "1"
 
 [extras]

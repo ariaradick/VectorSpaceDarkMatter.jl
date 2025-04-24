@@ -257,3 +257,12 @@ function cart_to_sph(uXYZ)
     end
     return [u, theta, phi]
 end
+
+function _fsht_to_vsdm(C,ellmax)
+    lm_vals = LM_vals(ellmax)
+    res = zeros(Float64, length(lm_vals))
+    for i in eachindex(lm_vals)
+        res[i] = C[sph_mode(lm_vals[i]...)]
+    end
+    return res
+end

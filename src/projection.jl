@@ -83,24 +83,39 @@ Evaluates ``\\langle f | n \\ell m \\rangle`` at each ``(n,\\ell,m)`` up to
 `use_measurements` : If `true`, will give the results as a measurement with
     uncertainty given by the integration error.
 
-`integ_method` : Either `:cubature`, `:vegas`, or `:vegasmc`
+`integ_method` : Either `:discrete`, `:cubature`, `:vegas`, or `:vegasmc`.
+    `:discrete` will use `SphericalHaarTransform` to do the transformation
+    with the two-point Gaussian quadrature method.
 
 `integ_params` : keyword arguments to pass to the integrator. If `:cubature`, 
     these are kwargs for `hcubature`. If `:vegas` or `:vegasmc`, these are
-    kwargs for `MCIntegration`'s `integrate` method.
+    kwargs for `MCIntegration`'s `integrate` method. Ignored if using
+    `:discrete`.
 """
 function ProjectF(f, nl_max::Tuple{Int,Int}, radial_basis::RadialBasis; 
-                    dict=false, use_measurements=false, integ_method=:cubature,
+                    dict=false, use_measurements=false, method=:discrete,
                     integ_params=(;))
-    fuSph = f_uSph(f)
-    ProjectF(fuSph, nl_max, radial_basis; dict=dict,
-    use_measurements=use_measurements, integ_method=integ_method,
-    integ_params=integ_params)
+    if (method == :discrete) && (typeof(radial_basis) == Wavelet)
+        n_max, l_max = nl_max
+        lm_vals = LM_vals(l_max)
+        N_lm = length(lm_vals)
+        res = zeros(Float64, (n_max+1, N_lm))
+        Fp = sph_haar_transform(f, n_max, l_max, radial_basis.umax)
+        for i in 1:n_max+1
+            res[i,:] = _fsht_to_vsdm(Fp[i,:,:], l_max)
+        end
+        return ProjectedF(res, lm_vals, radial_basis)
+    else
+        fuSph = f_uSph(f)
+        return ProjectF(fuSph, nl_max, radial_basis; dict=dict,
+            use_measurements=use_measurements, method=method,
+            integ_params=integ_params)
+    end
 end
 
 function ProjectF(f::f_uSph, nl_max::Tuple{Int,Int}, 
         radial_basis::RadialBasis; dict=false, use_measurements=false, 
-        integ_method=:cubature, integ_params=(;))
+        method=:cubature, integ_params=(;))
 
     n_max, l_max = nl_max
     n_vals = 0:n_max
@@ -109,7 +124,7 @@ function ProjectF(f::f_uSph, nl_max::Tuple{Int,Int},
 
     res = zeros(Measurement, (n_max+1, N_lm))
 
-    if integ_method == :cubature
+    if method == :cubature
         if !(:atol in keys(integ_params))
             f000 = getFnlm(f, (0,0,0), radial_basis; integ_params=integ_params)
             if :rtol in keys(integ_params)
@@ -128,7 +143,7 @@ function ProjectF(f::f_uSph, nl_max::Tuple{Int,Int},
         ell, m = lm_vals[i]
         for n in n_vals
             res[n+1, i] = getFnlm(f, (n, ell, m), radial_basis;
-                            integ_method=integ_method,
+                            integ_method=method,
                             integ_params=int_pars)
         end
     end
