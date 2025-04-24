@@ -125,5 +125,5 @@ function kinematic_I(lnvnq_max, model::ModelDMSM,
              q_basis::RadialBasis)
     @. res *= commonFactor
 
-    return permutedims(res,[2,3,1])
+    return permutedims(res,[3,2,1])
 end

@@ -82,7 +82,7 @@ function get_mcalK_ell(pfv::ProjectedF, pfq::ProjectedF, ell, I_ell;
             for jv in eachindex(mv_vals)
                 fvj = @view fv_vals[:,iv_vals[jv]]
                 kv = mv_vals[jv] + ell + 1
-                K_val[kv, kq] = dot(fvj, Il_vals, fqj)
+                K_val[kv, kq] = dot(fqj, Il_vals, fvj)
             end
         end
         return K_val
@@ -105,11 +105,11 @@ function get_mcalK_ell(pfv::ProjectedF, pfq::ProjectedF, ell, I_ell;
                 fvn = @view fv_vals[:,iv_vals[jv]]
                 fvn_err = @view fv_errs[:,iv_vals[jv]]
     
-                k_mat_err = @. sqrt( (fvn_err' * fqn * Il_vals)^2 +
-                                     (fqn_err * fvn' * Il_vals)^2 +
-                                     (Il_errs * fvn' * fqn)^2 )
+                k_mat_err = @. sqrt( (fqn_err * fvn' * Il_vals)^2 +
+                                     (fvn_err' * fqn * Il_vals)^2 +
+                                     (Il_errs * fqn * fvn')^2 )
     
-                K_val[kv, kq] = fvn' * Il_vals * fqn
+                K_val[kv, kq] = fqn' * Il_vals * fvn
                 K_err[kv, kq] = sqrt(dot(k_mat_err, k_mat_err))
             end
         end
@@ -133,7 +133,7 @@ function _mcalK_ell!(K_ell, I_ell, ell, fv, iv, mv, fq, iq, mq)
         for jv in eachindex(mv)
             fvj = @view fv[:,iv[jv]]
             kv = mv[jv] + ell + 1
-            K_ell[kv, kq] = dot(fvj, I_ell, fqj)
+            K_ell[kv, kq] = dot(fqj, I_ell, fvj)
         end
     end
 end
@@ -150,10 +150,10 @@ function _mcalK_ell_err!(K_ell, K_ell_err, I_ell, ell, fv, fv_errs, iv, mv,
             fvn = @view fv[:,iv[jv]]
             fvn_err = @view fv_errs[:,iv[jv]]
 
-            k_mat_err = @. sqrt( (fvn_err' * fqn * I_ell)^2 +
-                                    (fqn_err * fvn' * I_ell)^2 )
+            k_mat_err = @. sqrt( (fqn_err * fvn' * I_ell)^2 +
+                                    (fvn_err' * fqn * I_ell)^2 )
 
-            K_ell[kv, kq] = dot(fvn, I_ell, fqn)
+            K_ell[kv, kq] = dot(fqn, I_ell, fvn)
             K_ell_err[kv, kq] = sqrt(dot(k_mat_err, k_mat_err))
         end
     end
