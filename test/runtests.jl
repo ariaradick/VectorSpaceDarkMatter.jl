@@ -9,7 +9,7 @@ VSDM = VectorSpaceDarkMatter
     pfg_test = ProjectF(g1, (2^10-1, 10), wv_g)
 
     gg = GaussianF(1.0, [200.0*VSDM.km_s,0.0,0.0], 100.0*VSDM.km_s/sqrt(2))
-    pfgg = ProjectF(gg, (2^10-1,10), Wavelet(960.0*VSDM.km_s))
+    pfgg = ProjectF(gg, (2^11-1,10), Wavelet(960.0*VSDM.km_s))
 
     ff = GaussianF(1.0, [2.0*VSDM.qBohr,0.0,0.0], 3.0*VSDM.qBohr/sqrt(2))
     pfff = ProjectF(ff, (2^10-1,10), Wavelet(10*VSDM.qBohr))
