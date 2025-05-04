@@ -19,8 +19,12 @@ VSDM = VectorSpaceDarkMatter
     gauss_norm = f2_norm(g1)
     projected_norm = f2_norm(pfg_test)
 
-    project_1 = ProjectF(x -> VSDM.haar_sph_value(0) * VSDM.ylm_real(0,0,0,0), 
-                         (0,0), Wavelet()).fnlm[1]
+    testf(x) = VSDM.haar_sph_value(0) * VSDM.ylm_real(0,0,0,0)
+
+    project_1 = ProjectF(testf, (0,0), Wavelet(); method=:discrete).fnlm[1]
+    project_2 = ProjectF(testf, (0,0), Wavelet(); method=:cubature).fnlm[1]
+    project_3 = ProjectF(testf, (0,0), Wavelet(); method=:vegas, 
+                integ_params=(neval=1e6,)).fnlm[1]
 
     rate_factor = (960.0*VSDM.km_s)^2 / (10.0*VSDM.qBohr)
     rate_test = 2.243e-22 # approx. monte carlo integral result
@@ -28,5 +32,7 @@ VSDM = VectorSpaceDarkMatter
 
     @test isapprox(gauss_norm, projected_norm; rtol=1e-4)
     @test isapprox(project_1, 1.0)
+    @test isapprox(project_2, 1.0)
+    @test isapprox(project_3, 1.0; rtol=1e-4)
     @test isapprox(rate_proj, rate_test; rtol=1e-3)
 end
